@@ -1,23 +1,22 @@
-import { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/SignIn";
+import AdminDashboard from "./pages/AdminDashboard";
+import CashierDashboard from "./pages/CashierDashboard";
+import AccountantDashboard from "./pages/AccountantDashboard";
 
 function App() {
-  useEffect(() => {
-    if (window.electron) {
-      console.log("✅ Electron API detected in React");
-
-      // Send message to Electron
-      window.electron.sendMessage("Hello from React");
-
-      // Listen for response from Electron
-      window.electron.onMessage((data) => {
-        console.log("📩 Message received in React:", data);
-      });
-    } else {
-      console.error("❌ Electron API not found in React");
-    }
-  }, []);
-
-  return <h1>Hello Electron + React!</h1>;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/cashier" element={<CashierDashboard />} />
+        <Route path="/accountant" element={<AccountantDashboard />} />
+        {/* Redirect unknown routes to login */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

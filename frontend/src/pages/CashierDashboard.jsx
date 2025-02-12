@@ -36,38 +36,70 @@ const CashierDashboard = () => {
         .map((type) => ({
           id: type.id,
           name: type.subcategory,
-          price: Number(type.price), // Ensure numeric price
-        }));
-
-      setSelectedCategories([...selectedCategories, { name: category, subcategories }]);
-
+          price: type.price,
+        }))
+        .sort((a, b) => {
+          const order = ["child", "adult", "grand"];
+          return order.indexOf(a.name) - order.indexOf(b.name);
+        });
+  
+      setSelectedCategories([
+        ...selectedCategories,
+        { name: category, subcategories },
+      ]);
+  
       setTicketCounts((prevCounts) => ({
         ...prevCounts,
-        [category]: subcategories.reduce((acc, sub) => ({ ...acc, [sub.id]: "0" }), {}),
+        [category]: subcategories.reduce(
+          (acc, sub) => ({ ...acc, [sub.id]: "0" }),
+          {}
+        ),
       }));
     }
   };
+  
 
   const updateTicketCounts = (category, newCounts) => {
     setTicketCounts((prev) => ({ ...prev, [category]: newCounts }));
   };
 
-  const handleCheckout = () => {
+
+  const handleCheckout = async () => {
     let order = [];
+  
     Object.entries(ticketCounts).forEach(([category, counts]) => {
       Object.entries(counts).forEach(([subId, quantity]) => {
         const ticketType = types.find((type) => type.id.toString() === subId);
         if (ticketType && Number(quantity) > 0) {
           order.push({
-            ticketTypeId: ticketType.id,
+            ticket_type_id: ticketType.id, // Match API field name
             quantity: Number(quantity),
           });
         }
       });
     });
-
-    console.log("Order submitted:", order);
+  
+    if (order.length === 0) {
+      alert("Please select at least one ticket");
+      return;
+    }
+  
+    console.log("Submitting order:", order);
+  
+    try {
+      const { data } = await axios.post("http://localhost:3000/api/tickets/sell", { tickets: order });
+  
+      alert("Tickets sold successfully!");
+      console.log("Sold Tickets:", data.soldTickets);
+  
+      // Reset ticket selection
+      setTicketCounts({});
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert(error.response?.data?.message || "Error processing your request");
+    }
   };
+  
 
   return (
     <div className="cashier-dashboard-container">

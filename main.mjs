@@ -13,21 +13,11 @@ app.whenReady().then(() => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"), // ✅ Updated to .cjs
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
-
-  mainWindow.loadURL("http://localhost:5173"); // ✅ Change this to your frontend URL
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.loadURL("http://localhost:5173");
 });
-mainWindow.webContents.session.webRequest.onHeadersReceived(
-  (details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        "Content-Security-Policy": ["default-src 'self'; script-src 'self'"],
-      },
-    });
-  }
-);

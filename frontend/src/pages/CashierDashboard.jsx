@@ -1,8 +1,8 @@
 const CashierDashboard = () => {
     return (
       <div>
-        <h1>Accountant Dashboard</h1>
-        <p>Welcome to the accountant's dashboard!</p>
+        <h1>Casheir Dashboard</h1>
+        <p>Welcome to the Casheir's dashboard!</p>
       </div>
     );
   };

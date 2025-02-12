@@ -1,8 +1,8 @@
 const AdminDashboard = () => {
     return (
       <div>
-        <h1>Accountant Dashboard</h1>
-        <p>Welcome to the accountant's dashboard!</p>
+        <h1>Admin Dashboard</h1>
+        <p>Welcome to the Admin's dashboard!</p>
       </div>
     );
   };

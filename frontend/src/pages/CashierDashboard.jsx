@@ -6,11 +6,13 @@ import SelectedCategoryPanel from "../components/SelectedCategoryPanel";
 const CashierDashboard = () => {
   const [types, setTypes] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [ticketCounts, setTicketCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    axios.get("http://localhost:3000/api/tickets/ticket-types")
+    axios
+      .get("http://localhost:3000/api/tickets/ticket-types")
       .then((response) => {
         setTypes(response.data);
         setLoading(false);
@@ -25,40 +27,86 @@ const CashierDashboard = () => {
   if (loading) return <p className="cashier-loading">Loading types...</p>;
   if (error) return <p className="cashier-error">{error}</p>;
 
-  // Get unique categories
   const uniqueCategories = [...new Set(types.map((type) => type.category))];
 
-  // Add category without removing previous ones
   const handleSelectCategory = (category) => {
     if (!selectedCategories.some((c) => c.name === category)) {
-      const subcategories = [
-        ...new Set(types.filter((type) => type.category === category).map((type) => type.subcategory))
-      ];
+      const subcategories = types
+        .filter((type) => type.category === category)
+        .map((type) => ({
+          id: type.id,
+          name: type.subcategory,
+          price: Number(type.price), // Ensure numeric price
+        }));
+
       setSelectedCategories([...selectedCategories, { name: category, subcategories }]);
+
+      setTicketCounts((prevCounts) => ({
+        ...prevCounts,
+        [category]: subcategories.reduce((acc, sub) => ({ ...acc, [sub.id]: "0" }), {}),
+      }));
     }
+  };
+
+  const updateTicketCounts = (category, newCounts) => {
+    setTicketCounts((prev) => ({ ...prev, [category]: newCounts }));
+  };
+
+  const handleCheckout = () => {
+    let order = [];
+    Object.entries(ticketCounts).forEach(([category, counts]) => {
+      Object.entries(counts).forEach(([subId, quantity]) => {
+        const ticketType = types.find((type) => type.id.toString() === subId);
+        if (ticketType && Number(quantity) > 0) {
+          order.push({
+            ticketTypeId: ticketType.id,
+            quantity: Number(quantity),
+          });
+        }
+      });
+    });
+
+    console.log("Order submitted:", order);
   };
 
   return (
     <div className="cashier-dashboard-container">
-      <CategoryPanel 
-        types={uniqueCategories.map(category => ({ category }))} 
-        onSelectCategory={handleSelectCategory} 
+      <CategoryPanel
+        types={uniqueCategories.map((category) => ({ category }))}
+        onSelectCategory={handleSelectCategory}
       />
-      
+
       <div className="cashier-main-content">
         <h2 className="cashier-dashboard-title">Cashier Dashboard</h2>
-        
+
         {selectedCategories.length > 0 ? (
           selectedCategories.map(({ name, subcategories }) => (
             <SelectedCategoryPanel 
               key={name} 
               category={name} 
               subcategories={subcategories} 
+              types={types}
+              ticketCounts={ticketCounts[name] || {}} 
+              onTicketCountsChange={(newCounts) => updateTicketCounts(name, newCounts)} 
             />
           ))
         ) : (
-          <p className="cashier-select-message">Select a category to add tickets.</p>
+          <p className="cashier-select-message">
+            Select a category to add tickets.
+          </p>
         )}
+
+        <div className="cashier-total">
+          <h3>Total: ${Object.values(ticketCounts).reduce((total, categoryCounts) => {
+            return total + Object.entries(categoryCounts).reduce((subTotal, [subId, quantity]) => {
+              const ticketType = types.find((type) => type.id.toString() === subId);
+              return subTotal + (ticketType ? Number(quantity) * Number(ticketType.price) : 0);
+            }, 0);
+          }, 0)}</h3>
+          <button className="cashier-checkout-btn" onClick={handleCheckout}>
+            Checkout
+          </button>
+        </div>
       </div>
     </div>
   );

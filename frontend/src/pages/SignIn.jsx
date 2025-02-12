@@ -9,12 +9,12 @@ const Login = () => {
   const navigate = useNavigate();
 
   // Check if the user is already logged in
- /*useEffect(() => {
+ useEffect(() => {
     const userRole = localStorage.getItem("userRole");
     if (userRole) {
       redirectToDashboard(userRole);
     }
-  }, []);*/
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();

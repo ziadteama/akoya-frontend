@@ -67,7 +67,7 @@ html, body {
   background: #007acc; /* Deep Blue */
   color: white;
   padding: 12px;
-  width: 80%;
+  width: 88%;
   border: none;
   border-radius: 8px;
   font-size: 18px;
@@ -101,4 +101,138 @@ h2 {
   color: red;
   font-size: 14px;
   margin-top: 5px;
+}
+
+
+/*----------------------------------------------*/
+/* Cashier Dashboard Layout */
+.cashier-dashboard-container {
+  display: flex;
+  height: 100vh;
+}
+
+/* Left Panel - Categories */
+.cashier-category-panel {
+  width: 250px;
+  background: #f8f9fa;
+  padding: 15px;
+  border-right: 1px solid #ddd;
+  height: 100vh;
+}
+
+.cashier-category-title {
+  margin-bottom: 10px;
+}
+
+.cashier-category-list {
+  list-style: none;
+  padding: 0;
+}
+
+.cashier-category-item {
+  padding: 10px;
+  cursor: pointer;
+  background: #fff;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+.cashier-category-item:hover {
+  background: #007bff;
+  color: white;
+}
+
+/* Main Content */
+.cashier-main-content {
+  flex-grow: 1;
+  padding: 20px;
+}
+
+.cashier-dashboard-title {
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+.cashier-selected-category {
+  margin-top: 20px;
+}
+
+.cashier-select-message {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Button Styling */
+.cashier-add-ticket-btn {
+  padding: 10px 15px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.cashier-add-ticket-btn:hover {
+  background: #218838;
+}
+
+/* Loading & Error Messages */
+.cashier-loading,
+.cashier-error {
+  font-size: 16px;
+  color: red;
+}
+.cashier-selected-category {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.cashier-category-name {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.cashier-subcategories {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cashier-subcategory-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subcategory-name {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.cashier-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 4px;
+}
+
+.cashier-btn:hover {
+  background: #0056b3;
+}
+
+.cashier-ticket-count {
+  width: 50px;
+  text-align: center;
+  font-size: 16px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }

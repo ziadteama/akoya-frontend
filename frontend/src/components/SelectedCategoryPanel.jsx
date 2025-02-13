@@ -1,6 +1,6 @@
 import React from "react";
 
-const SelectedCategoryPanel = ({ category, subcategories, types, ticketCounts, onTicketCountsChange }) => {
+const SelectedCategoryPanel = ({ category, subcategories, types, ticketCounts, onTicketCountsChange, onRemoveCategory }) => {
   if (!category || subcategories.length === 0) return null;
 
   const increment = (subId) => {
@@ -30,11 +30,14 @@ const SelectedCategoryPanel = ({ category, subcategories, types, ticketCounts, o
 
   return (
     <div className="cashier-selected-category">
-      <h3 className="cashier-category-name">{category}</h3>
+      <div className="cashier-category-header">
+        <h3 className="cashier-category-name">{category}</h3>
+        <button className="cashier-remove-category-btn" onClick={() => onRemoveCategory(category)}>Remove Category</button>
+      </div>
       <div className="cashier-subcategories">
         {subcategories.map((sub) => {
           const ticketType = types.find((type) => type.id === sub.id);
-          const price = ticketType ? Number(ticketType.price) : 0; // Ensure price is a number
+          const price = ticketType ? Number(ticketType.price) : 0;
           const count = Number(ticketCounts[sub.id] || 0);
 
           return (

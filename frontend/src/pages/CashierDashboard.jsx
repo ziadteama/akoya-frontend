@@ -98,27 +98,39 @@ const CashierDashboard = () => {
     }
   };
   
-  return (
+  return  (
     <div className="cashier-dashboard-container">
       <CategoryPanel types={uniqueCategories.map((category) => ({ category }))} onSelectCategory={handleSelectCategory} />
       <div className="cashier-main-content">
         <h2 className="cashier-dashboard-title">Cashier Dashboard</h2>
-        {selectedCategories.length > 0 ? (
-          selectedCategories.map(({ name, subcategories }) => (
-            <SelectedCategoryPanel key={name} category={name} subcategories={subcategories} types={types} ticketCounts={ticketCounts[name] || {}} onTicketCountsChange={(newCounts) => updateTicketCounts(name, newCounts)} onRemoveCategory={removeCategory} />
-          ))
-        ) : (
-          <p className="cashier-select-message">Select a category to add tickets.</p>
-        )}
-        <button className="cashier-reset-btn" onClick={resetOrder}>Reset Order</button>
-        <div className="cashier-total">
-          <h3>Total: ${Object.values(ticketCounts).reduce((total, categoryCounts) => {
-            return total + Object.entries(categoryCounts).reduce((subTotal, [subId, quantity]) => {
-              const ticketType = types.find((type) => type.id.toString() === subId);
-              return subTotal + (ticketType ? Number(quantity) * Number(ticketType.price) : 0);
-            }, 0);
-          }, 0)}</h3>
-          <button className="cashier-checkout-btn" onClick={handleCheckout}>Checkout</button>
+        <div className="selected-categories-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          {selectedCategories.length > 0 ? (
+            selectedCategories.map(({ name, subcategories }) => (
+              <SelectedCategoryPanel 
+                key={name} 
+                category={name} 
+                subcategories={subcategories} 
+                types={types} 
+                ticketCounts={ticketCounts[name] || {}} 
+                onTicketCountsChange={(newCounts) => updateTicketCounts(name, newCounts)} 
+                onRemoveCategory={removeCategory} 
+              />
+            ))
+          ) : (
+            <p className="cashier-select-message">Select a category to add tickets.</p>
+          )}
+        </div>
+        <div className="cashier-action-container">
+          <button className="cashier-reset-btn" onClick={resetOrder}>Reset Order</button>
+          <div className="cashier-total">
+            <h3>Total: ${Object.values(ticketCounts).reduce((total, categoryCounts) => {
+              return total + Object.entries(categoryCounts).reduce((subTotal, [subId, quantity]) => {
+                const ticketType = types.find((type) => type.id.toString() === subId);
+                return subTotal + (ticketType ? Number(quantity) * Number(ticketType.price) : 0);
+              }, 0);
+            }, 0)}</h3>
+            <button className="cashier-checkout-btn" onClick={handleCheckout}>Checkout</button>
+          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ const AccountantTopBar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem("userRole");
     navigate("/"); // Redirect to login page
   };
 

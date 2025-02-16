@@ -2,10 +2,9 @@
 html, body {
   height: 100%;
   margin: 0;
-  font-family: 'Poppins', sans-serif;
-  background: linear-gradient(135deg, #6DD5FA, #00C9FF); /* Sky & Water Gradient */
-  color: #003366;
   overflow: hidden;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #6DD5FA, #FFFFFF); /* Sky & Water Gradient */
 }
 
 /* 🎡 Centered Login Container */
@@ -16,9 +15,10 @@ html, body {
   align-items: center;
   height: 100vh;
   width: 100vw;
+  background: linear-gradient(135deg, #6DD5FA, #00C9FF); /* Ocean Gradient */
 }
 
-/* 🏖️ Login Box */
+/* 🏖️ Login Box (Like a Floating Pool Tile) */
 .login-box {
   background: rgba(255, 255, 255, 0.9);
   padding: 2rem;
@@ -26,12 +26,22 @@ html, body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   width: 350px;
   text-align: center;
-  backdrop-filter: blur(10px);
   transition: transform 0.2s ease-in-out;
+  backdrop-filter: blur(10px);
 }
 
+/* 🌊 Floating Effect */
 .login-box:hover {
   transform: translateY(-5px);
+}
+
+/* 🏝️ Form Styling */
+.login-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 2rem;
 }
 
 /* 🌞 Input Fields */
@@ -41,22 +51,23 @@ html, body {
   border: 2px solid #00aaff;
   border-radius: 8px;
   font-size: 16px;
-  background-color: rgba(255, 255, 255, 0.8);
   transition: 0.3s ease-in-out;
+  background-color: rgba(255, 255, 255, 0.7);
 }
 
+/* 🏄 Input Focus Effect */
 .login-container input:focus {
   border-color: #007acc;
   outline: none;
   box-shadow: 0 0 8px rgba(0, 122, 204, 0.4);
 }
 
-/* 🌊 Buttons (Consistent Across Pages) */
-.button {
-  background: #007acc;
+/* 🌊 Aqua-Themed Button */
+.login-container button {
+  background: #007acc; /* Deep Blue */
   color: white;
   padding: 12px;
-  width: 100%;
+  width: 80%;
   border: none;
   border-radius: 8px;
   font-size: 18px;
@@ -64,13 +75,17 @@ html, body {
   transition: background 0.3s ease-in-out, transform 0.2s ease-in-out;
 }
 
-.button:hover {
-  background: #005f99;
+/* 🌴 Button Hover Effect */
+.login-container button:hover {
+  background: #005f99; /* Slightly darker blue */
   transform: scale(1.05);
 }
 
-.button:active {
-  transform: scale(0.95);
+/* 🔥 Add a Wave Animation */
+@keyframes wave {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
 }
 
 /* 🌊 Logo or Title Animation */
@@ -78,21 +93,14 @@ h2 {
   font-size: 28px;
   color: #007acc;
   font-weight: bold;
-  text-align: center;
   animation: wave 2s infinite ease-in-out;
 }
 
 /* 🚨 Error Message */
-.error-message {
+.login-container p {
   color: red;
   font-size: 14px;
   margin-top: 5px;
-}
-
-/* 🔥 Add a Wave Animation */
-@keyframes wave {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(5px); }
 }
 
 /*----------------------------------------------*/
@@ -160,7 +168,7 @@ h2 {
 
 /* 🏝️ Dashboard Title */
 .cashier-dashboard-title {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: bold;
   margin-bottom: 20px;
   color: #003366;
@@ -354,6 +362,7 @@ h2 {
 .cashier-checkout-btn {
   background: #28a745; /* Green color */
   color: white; /* Text color */
+  font-size: 1.2rem;
   padding: 10px 20px; /* Padding for the button */
   border: none;
   border-radius: 6px; /* Rounded corners */

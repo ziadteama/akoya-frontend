@@ -121,7 +121,6 @@ const CashierDashboard = () => {
           )}
         </div>
         <div className="cashier-action-container">
-          <button className="cashier-reset-btn" onClick={resetOrder}>Reset Order</button>
           <div className="cashier-total">
             <h3>Total: ${Object.values(ticketCounts).reduce((total, categoryCounts) => {
               return total + Object.entries(categoryCounts).reduce((subTotal, [subId, quantity]) => {

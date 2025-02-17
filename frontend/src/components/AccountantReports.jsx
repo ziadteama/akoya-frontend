@@ -21,9 +21,7 @@ const AccountantReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [reportData, setReportData] = useState([]);
 
-  // Fetch report data
   const fetchReport = async (date) => {
-    console.log("Fetching report for date:", date);
     try {
       const { data } = await axios.get("http://localhost:3000/api/tickets/day-report", {
         params: { date },
@@ -38,7 +36,6 @@ const AccountantReports = () => {
     fetchReport(selectedDate.format("YYYY-MM-DD"));
   }, [selectedDate]);
 
-  // Group report data by category
   const groupedData = reportData.reduce((acc, row) => {
     if (!acc[row.category]) {
       acc[row.category] = [];
@@ -47,34 +44,34 @@ const AccountantReports = () => {
     return acc;
   }, {});
 
-  // Calculate totals
   const totalRevenue = reportData.reduce((sum, row) => sum + Number(row.total_revenue || 0), 0);
   const totalTicketsSold = reportData.reduce((sum, row) => sum + Number(row.total_tickets || 0), 0);
 
-  // Export CSV
   const exportCSV = () => {
-    let csvContent = "Category,Subcategory,Tickets Sold,Total Revenue\n";
+    let csvContent = "\uFEFFCategory,Subcategory,Tickets Sold,Total Revenue\n"; // UTF-8 BOM added
+  
     reportData.forEach((row) => {
       csvContent += `${row.category},${row.subcategory},${row.total_tickets},${row.total_revenue}\n`;
     });
-
+  
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, `Report_${selectedDate.format("YYYY-MM-DD")}.csv`);
   };
+  
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Paper
         sx={{
-          width: "80vw",
-          height: "90vh",
+          maxHeight: "calc(100vh - 250px)", // Ensures the summary is always visible
+          height: "100vh",
           padding: 2,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "start",
           overflow: "hidden",
-          position: "relative",
+          marginBottom: 0,
         }}
       >
         <Typography variant="h4" sx={{ marginBottom: 2 }}>Day Reports</Typography>
@@ -88,75 +85,90 @@ const AccountantReports = () => {
           sx={{ marginBottom: 2 }}
         />
 
-        {/* Table Container with vertical scrolling */}
-        <TableContainer
-          component={Paper}
-          sx={{
-            width: "100%",
-            maxHeight: "65vh",
+        {/* Scrollable Table - max height so summary is always visible */}
+        <div
+          style={{
+            width: "90vw",
+            maxWidth: "1200px",
+            flex: 1,
             overflowY: "auto",
-            overflowX: "hidden",
-            marginBottom: "60px",
+            maxHeight: "calc(100vh - 250px)", // Ensures the summary is always visible
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            background: "#fff",
           }}
         >
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell><b>Category</b></TableCell>
-                <TableCell><b>Subcategory</b></TableCell>
-                <TableCell><b>Tickets Sold</b></TableCell>
-                <TableCell><b>Total Revenue</b></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.keys(groupedData).length === 0 ? (
+          <TableContainer>
+            <Table stickyHeader>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={4} align="center">No Data Available</TableCell>
+                  {["Category", "Subcategory", "Tickets Sold", "Total Revenue"].map((header) => (
+                    <TableCell
+                      key={header}
+                      align="center"
+                      sx={{ borderBottom: "2px solid #000", fontWeight: "bold" }}
+                    >
+                      {header}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ) : (
-                Object.entries(groupedData).map(([category, subcategories], categoryIndex) => (
-                  subcategories.map((row, subIndex) => (
-                    <TableRow key={`${categoryIndex}-${subIndex}`}>
-                      {subIndex === 0 ? (
-                        <TableCell
-                          rowSpan={subcategories.length}
-                          sx={{
-                            fontWeight: "bold",
-                            fontSize: "1.2rem",
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                          }}
-                        >
-                          {category}
-                        </TableCell>
-                      ) : null}
-                      <TableCell>{row.subcategory}</TableCell>
-                      <TableCell>{Number(row.total_tickets || 0)}</TableCell>
-                      <TableCell>${Number(row.total_revenue || 0).toFixed(2)}</TableCell>
-                    </TableRow>
+              </TableHead>
+              <TableBody>
+                {Object.keys(groupedData).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">No Data Available</TableCell>
+                  </TableRow>
+                ) : (
+                  Object.entries(groupedData).map(([category, subcategories], categoryIndex) => (
+                    <React.Fragment key={categoryIndex}>
+                      {subcategories.map((row, subIndex) => (
+                        <TableRow key={`${categoryIndex}-${subIndex}`} sx={{ borderBottom: "1px solid #ccc" }}>
+                          {subIndex === 0 ? (
+                            <TableCell
+                              rowSpan={subcategories.length}
+                              align="center"
+                              sx={{
+                                fontWeight: "bold",
+                                fontSize: "1.2rem",
+                                textAlign: "center",
+                                verticalAlign: "middle",
+                                backgroundColor: "#bbb",
+                                color: "#000",
+                                borderRight: "1px solid #999",
+                              }}
+                            >
+                              {category}
+                            </TableCell>
+                          ) : null}
+                          <TableCell align="center" sx={{ borderRight: "1px solid #999" }}>{row.subcategory}</TableCell>
+                          <TableCell align="center" sx={{ borderRight: "1px solid #999" }}>{Number(row.total_tickets || 0)}</TableCell>
+                          <TableCell align="center">${Number(row.total_revenue || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
                   ))
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
 
-        {/* Fixed Summary Section */}
+        {/* Fixed Summary at the Bottom (Never Hidden) */}
         <Paper
           sx={{
-            width: "100%",
-            maxWidth: "80vw",
+            width: "100vw",
             padding: 2,
             textAlign: "center",
-            position: "fixed",
-            bottom: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
             background: "white",
             boxShadow: "0 -2px 5px rgba(0,0,0,0.1)",
+            height: "100px",
             display: "flex",
             flexDirection: "column",
+            justifyContent: "center",
             alignItems: "center",
+            border: "1px solid #ccc",
+            bottom: 5,
+            position: "absolute ",
           }}
         >
           <Typography variant="h6">Summary</Typography>

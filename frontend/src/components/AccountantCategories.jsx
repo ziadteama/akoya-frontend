@@ -45,6 +45,14 @@ const AccountantCategories = () => {
         return acc;
       }, {});
 
+      // Sort subcategories within each category (child, adult, grand)
+      Object.keys(groupedCategories).forEach((category) => {
+        groupedCategories[category].sort((a, b) => {
+          const order = ["child", "adult", "grand"];
+          return order.indexOf(a.subcategory) - order.indexOf(b.subcategory);
+        });
+      });
+
       setCategories(groupedCategories);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -162,9 +170,23 @@ const AccountantCategories = () => {
             ) : (
               Object.entries(categories).map(([categoryName, tickets]) => (
                 <React.Fragment key={categoryName}>
-                  {tickets.map((ticket) => (
+                  {/* Render category row only once */}
+                  {tickets.map((ticket, index) => (
                     <TableRow key={ticket.id}>
-                      <TableCell align="center">{categoryName}</TableCell>
+                      {/* Display category name only on the first row */}
+                      {index === 0 && (
+                        <TableCell
+                          rowSpan={tickets.length}
+                          align="center"
+                          sx={{
+                            fontWeight: "bold",
+                            fontSize: "1.2rem",
+                            verticalAlign: "middle",
+                          }}
+                        >
+                          {categoryName}
+                        </TableCell>
+                      )}
                       <TableCell align="center">{ticket.subcategory}</TableCell>
                       <TableCell align="center">{ticket.description}</TableCell>
                       <TableCell align="center">

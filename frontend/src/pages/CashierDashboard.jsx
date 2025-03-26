@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import CategoryPanel from "../components/CategoryPanel";
 import SelectedCategoryPanel from "../components/SelectedCategoryPanel";
+import TopBar from "../components/TopBar";
 
 const CashierDashboard = () => {
   const [types, setTypes] = useState([]);
@@ -99,7 +100,9 @@ const CashierDashboard = () => {
   };
   
   return  (
+
     <div className="cashier-dashboard-container">
+      <TopBar title="Cashier Dashboard"/>
       <CategoryPanel types={uniqueCategories.map((category) => ({ category }))} onSelectCategory={handleSelectCategory} />
       <div className="cashier-main-content">
         <h2 className="cashier-dashboard-title">Cashier Dashboard</h2>

@@ -3,7 +3,7 @@ import { AppBar, Toolbar, Typography, Button } from "@mui/material";
 import { Logout } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-const AccountantTopBar = () => {
+const TopBar = (props) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -19,13 +19,13 @@ const AccountantTopBar = () => {
         left: "250px", 
         boxShadow: "none", 
         margin: 0, 
-        backgroundColor: "#1976d2" // ✅ MUI default blue color
+        backgroundColor: "#0052cc" // ✅ MUI default blue color
       }}
     >
       <Toolbar sx={{ display: "flex", justifyContent: "space-between", paddingX: "20px" }}>
         {/* ✅ Add "Accountant Dashboard" text */}
         <Typography variant="h6" sx={{ fontWeight: "bold", color: "white" }}>
-          Accountant Dashboard
+          {props.title}
         </Typography>
 
         {/* Logout Button */}
@@ -37,4 +37,4 @@ const AccountantTopBar = () => {
   );
 };
 
-export default AccountantTopBar;
+export default TopBar;

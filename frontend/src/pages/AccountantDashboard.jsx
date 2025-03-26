@@ -1,6 +1,6 @@
 import React from "react";
 import AccountantSidebar from "../components/AccountantSidebar";
-import AccountantTopBar from "../components/AccountantTopBar"; // ✅ Now using a separate top bar
+import AccountantTopBar from "../components/TopBar"; // ✅ Now using a separate top bar
 import { Outlet } from "react-router-dom";
 
 const AccountantDashboard = () => {
@@ -12,7 +12,7 @@ const AccountantDashboard = () => {
       {/* Main Content Area */}
       <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%" }}>
         {/* Top Bar */}
-        <AccountantTopBar />
+        <AccountantTopBar title="Accountant Dashboard" />
 
         {/* Page Content (Prevents Overlap) */}
         <div style={{  marginTop: "64px", overflowY: "auto" }}>

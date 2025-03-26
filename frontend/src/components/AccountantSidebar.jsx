@@ -13,16 +13,19 @@ const AccountantSidebar = () => {
 
   return (
     <Drawer
-      variant="permanent"
-      sx={{
-        width: "250px",
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: "250px",
-          boxSizing: "border-box",
-        },
-      }}
-    >
+  variant="permanent"
+  sx={{
+    width: "250px",
+    flexShrink: 0,
+    "& .MuiDrawer-paper": {
+      width: "250px",
+      background: "#f8f9fa",
+      color: "#000", 
+      boxSizing: "border-box",
+    },
+  }}
+>
+
       <List>
         {menuItems.map((item) => (
           <ListItem button key={item.text} component={Link} to={item.path} sx={{ color: "inherit", textDecoration: "none" }}>

@@ -8,7 +8,6 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Check if the user is already logged in
  useEffect(() => {
     const userRole = localStorage.getItem("userRole");
     if (userRole) {

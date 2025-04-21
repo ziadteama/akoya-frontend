@@ -82,24 +82,39 @@ const CashierDashboard = () => {
                 maxHeight: "calc(100vh - 120px)",
                 overflowY: "auto",
                 pr: 1,
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              <TicketSelectorPanel
-                types={types}
-                selectedCategories={selectedCategories}
-                ticketCounts={ticketCounts}
-                onTicketCountsChange={setTicketCounts}
-                onRemoveCategory={handleRemoveCategory}
-              />
-              <CheckoutPanel
-                ticketCounts={ticketCounts}
-                types={types}
-                onCheckout={handleCheckout}
-                onClear={() => {
-                  setTicketCounts({});
-                  setSelectedCategories([]);
+              <Box sx={{ flex: 1 }}>
+                <TicketSelectorPanel
+                  types={types}
+                  selectedCategories={selectedCategories}
+                  ticketCounts={ticketCounts}
+                  onTicketCountsChange={setTicketCounts}
+                  onRemoveCategory={handleRemoveCategory}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  position: "sticky",
+                  bottom: 0,
+                  backgroundColor: "#F0F9FF",
+                  pt: 2,
+                  zIndex: 10,
                 }}
-              />
+              >
+                <CheckoutPanel
+                  ticketCounts={ticketCounts}
+                  types={types}
+                  onCheckout={handleCheckout}
+                  onClear={() => {
+                    setTicketCounts({});
+                    setSelectedCategories([]);
+                  }}
+                />
+              </Box>
             </Box>
           </Grid>
         </Grid>

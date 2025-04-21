@@ -48,17 +48,15 @@ const AccountantReports = () => {
   const totalTicketsSold = reportData.reduce((sum, row) => sum + Number(row.total_tickets || 0), 0);
 
   const exportCSV = () => {
-    let csvContent = "\uFEFFCategory,Subcategory,Tickets Sold,Total Revenue\n"; // UTF-8 BOM added
+    let csvContent = "\uFEFFCategory,Subcategory,Tickets Sold,Total Revenue\n";
     reportData.forEach((row) => {
       csvContent += `${row.category},${row.subcategory},${row.total_tickets},${row.total_revenue}\n`;
     });
-
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, `Report_${selectedDate.format("YYYY-MM-DD")}.csv`);
   };
 
-  // Define alternating colors
-  const colors = ["#f8f9fa", "#e9ecef"];
+  const colors = ["#E4F8FC", "#D1F2F5"];
   const subcategoryColors = new Map();
   let colorIndex = 0;
 
@@ -66,17 +64,17 @@ const AccountantReports = () => {
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Paper
         sx={{
-          maxHeight: "calc(100vh - 200px)",
-          height: "100vh",
-          padding: 2,
+          maxHeight: "calc(100vh - 120px)",
+          height: "100%",
+          p: 3,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          backgroundColor: "#f4f6f8",
+          backgroundColor: "#F0F9FF",
           borderRadius: 2,
         }}
       >
-        <Typography variant="h4" sx={{ marginBottom: 2, color: "#333" }}>
+        <Typography variant="h4" sx={{ mb: 3, color: "#007EA7", fontWeight: 600 }}>
           Day Reports
         </Typography>
 
@@ -85,19 +83,19 @@ const AccountantReports = () => {
           value={selectedDate}
           onChange={(newValue) => setSelectedDate(newValue)}
           renderInput={(params) => <TextField {...params} />}
-          sx={{ marginBottom: 2, backgroundColor: "#fff", borderRadius: 1 }}
+          sx={{ mb: 3, backgroundColor: "#fff", borderRadius: 1 }}
         />
 
         <div
           style={{
-            width: "90vw",
+            width: "100%",
             maxWidth: "1200px",
             flex: 1,
             overflowY: "auto",
-            maxHeight: "calc(100vh - 250px)",
+            maxHeight: "calc(100vh - 300px)",
             borderRadius: "8px",
             background: "#fff",
-            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+            boxShadow: "0 2px 8px rgba(0, 174, 239, 0.2)",
           }}
         >
           <TableContainer>
@@ -108,7 +106,7 @@ const AccountantReports = () => {
                     <TableCell
                       key={header}
                       align="center"
-                      sx={{ fontWeight: "bold", color: "#fff", backgroundColor: "#9C9EA1",fontSize: "1.4rem" }}
+                      sx={{ fontWeight: "bold", color: "#fff", backgroundColor: "#00AEEF", fontSize: "1.2rem" }}
                     >
                       {header}
                     </TableCell>
@@ -118,7 +116,7 @@ const AccountantReports = () => {
               <TableBody>
                 {Object.keys(groupedData).length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" >
+                    <TableCell colSpan={4} align="center">
                       No Data Available
                     </TableCell>
                   </TableRow>
@@ -126,7 +124,6 @@ const AccountantReports = () => {
                   Object.entries(groupedData).map(([category, subcategories], categoryIndex) => (
                     <React.Fragment key={categoryIndex}>
                       {subcategories.map((row, subIndex) => {
-                        // Assign a color per unique subcategory
                         if (!subcategoryColors.has(row.subcategory)) {
                           subcategoryColors.set(row.subcategory, colors[colorIndex % 2]);
                         }
@@ -143,23 +140,18 @@ const AccountantReports = () => {
                                 align="center"
                                 sx={{
                                   fontWeight: "bold",
-                                  fontSize: "1.3rem",
-                                  textAlign: "center",
-                                  backgroundColor: "#BCBFC2",
-                                  color: "#1B1C1C",
-                                  borderRight: "1px solid #999",
+                                  fontSize: "1.1rem",
+                                  backgroundColor: "#00C2CB",
+                                  color: "#fff",
+                                  borderRight: "1px solid #ccc",
                                 }}
                               >
                                 {category}
                               </TableCell>
                             ) : null}
-                            <TableCell align="center" sx={{ borderRight: "1px solid #999" }}>
-                              {row.subcategory}
-                            </TableCell>
-                            <TableCell align="center" sx={{ borderRight: "1px solid #999" }}>
-                              {Number(row.total_tickets || 0)}
-                            </TableCell>
-                            <TableCell align="center" sx={{ fontWeight: "bold", color: "#27ae60" }}>
+                            <TableCell align="center">{row.subcategory}</TableCell>
+                            <TableCell align="center">{Number(row.total_tickets || 0)}</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: "bold", color: "#00A651" }}>
                               ${Number(row.total_revenue || 0).toFixed(2)}
                             </TableCell>
                           </TableRow>
@@ -175,19 +167,14 @@ const AccountantReports = () => {
 
         <Paper
           sx={{
-            width: "100vw",
-            padding: 2,
+            width: "100%",
+            mt: 3,
+            background: "#E0F7FF",
+            color: "#007EA7",
+            borderRadius: 2,
+            p: 2,
             textAlign: "center",
-            background: "#DADDE4",
-            color: "#000",
-            boxShadow: "0 -2px 5px rgba(0,0,0,0.1)",
-            height: "100px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            bottom: 5,
-            position: "absolute",
+            boxShadow: "0 -2px 5px rgba(0,0,0,0.05)",
           }}
         >
           <Typography variant="body1">
@@ -196,7 +183,11 @@ const AccountantReports = () => {
           <Typography variant="body1">
             <b>Total Revenue:</b> ${totalRevenue.toFixed(2)}
           </Typography>
-          <Button variant="contained" sx={{ marginTop: 1, backgroundColor: "#e74c3c" }} onClick={exportCSV}>
+          <Button
+            variant="contained"
+            sx={{ mt: 2, backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }}
+            onClick={exportCSV}
+          >
             Export as CSV
           </Button>
         </Paper>

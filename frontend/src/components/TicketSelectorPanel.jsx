@@ -8,12 +8,13 @@ import {
   IconButton,
   TextField,
   Button,
+  Divider
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-const SelectedCategoryPanel = ({
+const TicketSelectorPanel = ({
   category,
   subcategories,
   ticketCounts,
@@ -43,7 +44,12 @@ const SelectedCategoryPanel = ({
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
         <Typography variant="h6" sx={{ color: "#007EA7", fontWeight: "bold" }}>
           {category}
         </Typography>
@@ -57,10 +63,10 @@ const SelectedCategoryPanel = ({
       </Box>
 
       <Grid container spacing={2}>
-        {subcategories.map((sub) => {
-          const count = Number(ticketCounts[sub.id] || 0);
+        {subcategories.map((type) => {
+          const count = Number(ticketCounts[type.id] || 0);
           return (
-            <Grid item xs={12} sm={6} key={sub.id}>
+            <Grid item xs={12} key={type.id}>
               <Card
                 sx={{
                   backgroundColor: "#F0F9FF",
@@ -70,18 +76,18 @@ const SelectedCategoryPanel = ({
               >
                 <CardContent>
                   <Typography variant="subtitle1" sx={{ color: "#333", fontWeight: 500 }}>
-                    {sub.name} — ${sub.price}
+                    {type.name} — ${type.price}
                   </Typography>
 
                   <Box display="flex" alignItems="center" mt={1}>
-                    <IconButton onClick={() => decrement(sub.id)} sx={{ color: "#007EA7" }}>
+                    <IconButton onClick={() => decrement(type.id)} sx={{ color: "#007EA7" }}>
                       <RemoveIcon />
                     </IconButton>
 
                     <TextField
                       size="small"
-                      value={ticketCounts[sub.id] || "0"}
-                      onChange={(e) => handleInputChange(sub.id, e.target.value)}
+                      value={ticketCounts[type.id] || "0"}
+                      onChange={(e) => handleInputChange(type.id, e.target.value)}
                       inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                       sx={{
                         width: "60px",
@@ -90,7 +96,7 @@ const SelectedCategoryPanel = ({
                       }}
                     />
 
-                    <IconButton onClick={() => increment(sub.id)} sx={{ color: "#007EA7" }}>
+                    <IconButton onClick={() => increment(type.id)} sx={{ color: "#007EA7" }}>
                       <AddIcon />
                     </IconButton>
                   </Box>
@@ -104,4 +110,4 @@ const SelectedCategoryPanel = ({
   );
 };
 
-export default SelectedCategoryPanel;
+export default TicketSelectorPanel;

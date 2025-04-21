@@ -25,10 +25,7 @@ const CashierDashboard = () => {
   };
 
   const handleRemoveCategory = (category) => {
-    // Remove category from view
     setSelectedCategories((prev) => prev.filter((c) => c !== category));
-
-    // Clear associated ticket counts
     const updatedCounts = { ...ticketCounts };
     types
       .filter((t) => t.category === category)
@@ -80,22 +77,30 @@ const CashierDashboard = () => {
           </Grid>
 
           <Grid item xs={6}>
-            <TicketSelectorPanel
-              types={types}
-              selectedCategories={selectedCategories}
-              ticketCounts={ticketCounts}
-              onTicketCountsChange={setTicketCounts}
-              onRemoveCategory={handleRemoveCategory}
-            />
-            <CheckoutPanel
-              ticketCounts={ticketCounts}
-              types={types}
-              onCheckout={handleCheckout}
-              onClear={() => {
-                setTicketCounts({});
-                setSelectedCategories([]);
+            <Box
+              sx={{
+                maxHeight: "calc(100vh - 120px)",
+                overflowY: "auto",
+                pr: 1,
               }}
-            />
+            >
+              <TicketSelectorPanel
+                types={types}
+                selectedCategories={selectedCategories}
+                ticketCounts={ticketCounts}
+                onTicketCountsChange={setTicketCounts}
+                onRemoveCategory={handleRemoveCategory}
+              />
+              <CheckoutPanel
+                ticketCounts={ticketCounts}
+                types={types}
+                onCheckout={handleCheckout}
+                onClear={() => {
+                  setTicketCounts({});
+                  setSelectedCategories([]);
+                }}
+              />
+            </Box>
           </Grid>
         </Grid>
       </Box>

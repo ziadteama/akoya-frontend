@@ -7,7 +7,7 @@ import { Box, Grid, Snackbar, Alert } from "@mui/material";
 
 const CashierDashboard = () => {
   const [types, setTypes] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [ticketCounts, setTicketCounts] = useState({});
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
@@ -17,6 +17,24 @@ const CashierDashboard = () => {
       .then((data) => setTypes(data))
       .catch((err) => console.error("Failed to fetch ticket types:", err));
   }, []);
+
+  const handleSelectCategory = (category) => {
+    if (!selectedCategories.includes(category)) {
+      setSelectedCategories([...selectedCategories, category]);
+    }
+  };
+
+  const handleRemoveCategory = (category) => {
+    // Remove category from view
+    setSelectedCategories((prev) => prev.filter((c) => c !== category));
+
+    // Clear associated ticket counts
+    const updatedCounts = { ...ticketCounts };
+    types
+      .filter((t) => t.category === category)
+      .forEach((t) => delete updatedCounts[t.id]);
+    setTicketCounts(updatedCounts);
+  };
 
   const handleCheckout = () => {
     const ticketsToSell = Object.entries(ticketCounts)
@@ -41,7 +59,7 @@ const CashierDashboard = () => {
         if (!res.ok) throw new Error(data.message || "Checkout failed");
         setSnackbarOpen(true);
         setTicketCounts({});
-        setSelectedCategory(null);
+        setSelectedCategories([]);
       })
       .catch((err) => {
         console.error("Checkout error:", err.message);
@@ -49,31 +67,34 @@ const CashierDashboard = () => {
       });
   };
 
-  const subcategories = selectedCategory
-    ? types.filter((t) => t.category === selectedCategory)
-    : [];
-
   return (
     <Box sx={{ backgroundColor: "#F0F9FF", minHeight: "100vh" }}>
       <TopBar title="Cashier Dashboard" />
       <Box sx={{ px: 3, py: 2 }}>
         <Grid container spacing={3}>
           <Grid item xs={6}>
-            <TicketCategoryPanel types={types} onSelectCategory={setSelectedCategory} />
+            <TicketCategoryPanel
+              types={types}
+              onSelectCategory={handleSelectCategory}
+            />
           </Grid>
 
           <Grid item xs={6}>
             <TicketSelectorPanel
-              category={selectedCategory}
-              subcategories={subcategories}
+              types={types}
+              selectedCategories={selectedCategories}
               ticketCounts={ticketCounts}
               onTicketCountsChange={setTicketCounts}
-              onRemoveCategory={() => setSelectedCategory(null)}
+              onRemoveCategory={handleRemoveCategory}
             />
             <CheckoutPanel
               ticketCounts={ticketCounts}
               types={types}
               onCheckout={handleCheckout}
+              onClear={() => {
+                setTicketCounts({});
+                setSelectedCategories([]);
+              }}
             />
           </Grid>
         </Grid>

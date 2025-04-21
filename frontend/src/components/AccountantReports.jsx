@@ -56,9 +56,7 @@ const AccountantReports = () => {
     saveAs(blob, `Report_${selectedDate.format("YYYY-MM-DD")}.csv`);
   };
 
-  const colors = ["#E4F8FC", "#D1F2F5"];
-  const subcategoryColors = new Map();
-  let colorIndex = 0;
+  const zebraColors = ["#E4F8FC", "#D1F2F5"];
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -124,11 +122,7 @@ const AccountantReports = () => {
                   Object.entries(groupedData).map(([category, subcategories], categoryIndex) => (
                     <React.Fragment key={categoryIndex}>
                       {subcategories.map((row, subIndex) => {
-                        if (!subcategoryColors.has(row.subcategory)) {
-                          subcategoryColors.set(row.subcategory, colors[colorIndex % 2]);
-                        }
-                        const bgColor = subcategoryColors.get(row.subcategory);
-
+                        const bgColor = zebraColors[categoryIndex % 2];
                         return (
                           <TableRow
                             key={`${categoryIndex}-${subIndex}`}

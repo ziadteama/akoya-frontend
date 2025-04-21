@@ -1,141 +1,118 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import CategoryPanel from "../components/CategoryPanel";
-import SelectedCategoryPanel from "../components/SelectedCategoryPanel";
+import React, { useState, useEffect } from "react";
 import TopBar from "../components/TopBar";
+import CategoryPanel from "../components/TicketCategoryPanel";
+import SelectedCategoryPanel from "../components/SelectedCategoryPanel";
+import { Box, Grid, Button, Snackbar, Alert, Typography } from "@mui/material";
 
 const CashierDashboard = () => {
   const [types, setTypes] = useState([]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [ticketCounts, setTicketCounts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/api/tickets/ticket-types")
-      .then((response) => {
-        setTypes(response.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching types:", err);
-        setError("Failed to load types");
-        setLoading(false);
-      });
+    fetch("http://localhost:3000/api/tickets/ticket-types")
+      .then((res) => res.json())
+      .then((data) => setTypes(data))
+      .catch((err) => console.error("Failed to fetch ticket types:", err));
   }, []);
 
-  if (loading) return <p className="cashier-loading">Loading types...</p>;
-  if (error) return <p className="cashier-error">{error}</p>;
+  const subcategories = selectedCategory
+    ? types.filter((t) => t.category === selectedCategory)
+    : [];
 
-  const uniqueCategories = [...new Set(types.map((type) => type.category))];
+  const handleCheckout = () => {
+    console.log("Checkout button clicked");
+    console.log("Ticket counts:", ticketCounts);
 
-  const handleSelectCategory = (category) => {
-    if (!selectedCategories.some((c) => c.name === category)) {
-      const subcategories = types
-        .filter((type) => type.category === category)
-        .map((type) => ({
-          id: type.id,
-          name: type.subcategory,
-          price: type.price,
-        }))
-        .sort((a, b) => {
-          const order = ["child", "adult", "grand"];
-          return order.indexOf(a.name) - order.indexOf(b.name);
-        });
-  
-      setSelectedCategories([...selectedCategories, { name: category, subcategories }]);
-      setTicketCounts((prevCounts) => ({
-        ...prevCounts,
-        [category]: subcategories.reduce((acc, sub) => ({ ...acc, [sub.id]: "0" }), {}),
+    const ticketsToSell = Object.entries(ticketCounts)
+      .filter(([id, qty]) => Number(qty) > 0)
+      .map(([id, qty]) => ({
+        ticket_type_id: parseInt(id),
+        quantity: parseInt(qty),
       }));
-    }
-  };
 
-  const removeCategory = (category) => {
-    setSelectedCategories(selectedCategories.filter((c) => c.name !== category));
-    setTicketCounts((prev) => {
-      const updatedCounts = { ...prev };
-      delete updatedCounts[category];
-      return updatedCounts;
-    });
-  };
-
-  const updateTicketCounts = (category, newCounts) => {
-    setTicketCounts((prev) => ({ ...prev, [category]: newCounts }));
-  };
-
-  const resetOrder = () => {
-    setSelectedCategories([]);
-    setTicketCounts({});
-  };
-
-  const handleCheckout = async () => {
-    let order = [];
-    Object.entries(ticketCounts).forEach(([category, counts]) => {
-      Object.entries(counts).forEach(([subId, quantity]) => {
-        const ticketType = types.find((type) => type.id.toString() === subId);
-        if (ticketType && Number(quantity) > 0) {
-          order.push({ ticket_type_id: ticketType.id, quantity: Number(quantity) });
-        }
-      });
-    });
-    
-    if (order.length === 0) {
-      alert("Please select at least one ticket");
+    if (ticketsToSell.length === 0) {
+      console.warn("No tickets to checkout");
       return;
     }
-    
-    console.log("Submitting order:", order);
-    
-    try {
-      const { data } = await axios.post("http://localhost:3000/api/tickets/sell", { tickets: order });
-      alert("Tickets sold successfully!");
-      console.log("Sold Tickets:", data.soldTickets);
-      resetOrder();
-    } catch (error) {
-      console.error("Checkout error:", error);
-      alert(error.response?.data?.message || "Error processing your request");
-    }
-  };
-  
-  return  (
 
-    <div className="cashier-dashboard-container">
-      <TopBar title="Cashier Dashboard"/>
-      <CategoryPanel types={uniqueCategories.map((category) => ({ category }))} onSelectCategory={handleSelectCategory} />
-      <div className="cashier-main-content">
-        <h2 className="cashier-dashboard-title">Cashier Dashboard</h2>
-        <div className="selected-categories-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          {selectedCategories.length > 0 ? (
-            selectedCategories.map(({ name, subcategories }) => (
-              <SelectedCategoryPanel 
-                key={name} 
-                category={name} 
-                subcategories={subcategories} 
-                types={types} 
-                ticketCounts={ticketCounts[name] || {}} 
-                onTicketCountsChange={(newCounts) => updateTicketCounts(name, newCounts)} 
-                onRemoveCategory={removeCategory} 
-              />
-            ))
-          ) : (
-            <p className="cashier-select-message">Select a category to add tickets.</p>
-          )}
-        </div>
-        <div className="cashier-action-container">
-          <div className="cashier-total">
-            <h3>Total: ${Object.values(ticketCounts).reduce((total, categoryCounts) => {
-              return total + Object.entries(categoryCounts).reduce((subTotal, [subId, quantity]) => {
-                const ticketType = types.find((type) => type.id.toString() === subId);
-                return subTotal + (ticketType ? Number(quantity) * Number(ticketType.price) : 0);
-              }, 0);
-            }, 0)}</h3>
-            <button className="cashier-checkout-btn" onClick={handleCheckout}>Checkout</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    console.log("Sending to backend:", ticketsToSell);
+
+    fetch("http://localhost:3000/api/tickets/sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tickets: ticketsToSell }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Checkout failed");
+        console.log("Tickets sold successfully:", data);
+        setSnackbarOpen(true);
+        setTicketCounts({});
+        setSelectedCategory(null);
+      })
+      .catch((err) => {
+        console.error("Checkout error:", err.message);
+        alert("Checkout failed: " + err.message);
+      });
+  };
+
+  return (
+    <Box sx={{ backgroundColor: "#F0F9FF", minHeight: "100vh" }}>
+      <TopBar title="Cashier Dashboard" />
+
+      <Box sx={{ px: 3, py: 2 }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <CategoryPanel
+              types={types}
+              onSelectCategory={setSelectedCategory}
+            />
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <SelectedCategoryPanel
+              category={selectedCategory}
+              subcategories={subcategories}
+              types={types}
+              ticketCounts={ticketCounts}
+              onTicketCountsChange={setTicketCounts}
+              onRemoveCategory={() => setSelectedCategory(null)}
+            />
+
+            {/* Checkout Button */}
+            <Box mt={2}>
+              <Button
+                variant="contained"
+                onClick={handleCheckout}
+                sx={{
+                  backgroundColor: "#00AEEF",
+                  "&:hover": { backgroundColor: "#00C2CB" },
+                }}
+              >
+                Checkout
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Tickets successfully sold!
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

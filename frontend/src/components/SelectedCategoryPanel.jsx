@@ -1,69 +1,106 @@
 import React from "react";
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  IconButton,
+  TextField,
+  Button,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-const SelectedCategoryPanel = ({ category, subcategories, types, ticketCounts, onTicketCountsChange, onRemoveCategory }) => {
+const SelectedCategoryPanel = ({
+  category,
+  subcategories,
+  ticketCounts,
+  onTicketCountsChange,
+  onRemoveCategory,
+}) => {
   if (!category || subcategories.length === 0) return null;
 
-  const increment = (subId) => {
+  const increment = (id) => {
+    const current = Number(ticketCounts[id] || 0);
+    onTicketCountsChange({ ...ticketCounts, [id]: String(current + 1) });
+  };
+
+  const decrement = (id) => {
+    const current = Number(ticketCounts[id] || 0);
     onTicketCountsChange({
       ...ticketCounts,
-      [subId]: String(Number(ticketCounts[subId] || 0) + 1),
+      [id]: String(current > 0 ? current - 1 : 0),
     });
   };
 
-  const decrement = (subId) => {
-    onTicketCountsChange({
-      ...ticketCounts,
-      [subId]: Number(ticketCounts[subId]) > 0 ? String(Number(ticketCounts[subId]) - 1) : "0",
-    });
-  };
-
-  const handleInputChange = (subId, value) => {
-    if (value === "") {
-      onTicketCountsChange({ ...ticketCounts, [subId]: "" });
-    } else {
-      const newValue = parseInt(value, 10);
-      if (!isNaN(newValue) && newValue >= 0) {
-        onTicketCountsChange({ ...ticketCounts, [subId]: String(newValue) });
-      }
-    }
+  const handleInputChange = (id, value) => {
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed) || parsed < 0) return;
+    onTicketCountsChange({ ...ticketCounts, [id]: String(parsed) });
   };
 
   return (
-    <div className="cashier-selected-category">
-      <div className="cashier-category-header">
-        <h3 className="cashier-category-name">{category}</h3>
-        <button className="cashier-remove-category-btn" onClick={() => onRemoveCategory(category)}>Remove Category</button>
-      </div>
-      <div className="cashier-subcategories">
-        {subcategories.map((sub) => {
-          const ticketType = types.find((type) => type.id === sub.id);
-          const price = ticketType ? Number(ticketType.price) : 0;
-          const count = Number(ticketCounts[sub.id] || 0);
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h6" sx={{ color: "#007EA7", fontWeight: "bold" }}>
+          {category}
+        </Typography>
+        <Button
+          color="error"
+          startIcon={<DeleteIcon />}
+          onClick={() => onRemoveCategory(category)}
+        >
+          Remove
+        </Button>
+      </Box>
 
+      <Grid container spacing={2}>
+        {subcategories.map((sub) => {
+          const count = Number(ticketCounts[sub.id] || 0);
           return (
-            <div key={`sub-${sub.id}`} className="cashier-subcategory-item">
-              <span className="subcategory-name">{sub.name}</span>
-              <button className="cashier-btn" onClick={() => decrement(sub.id)}>-</button>
-              <input
-                type="text"
-                className="cashier-ticket-count"
-                value={ticketCounts[sub.id] || "0"}
-                onChange={(e) => handleInputChange(sub.id, e.target.value)}
-                onBlur={(e) => {
-                  if (e.target.value === "") {
-                    onTicketCountsChange({ ...ticketCounts, [sub.id]: "0" });
-                  }
+            <Grid item xs={12} sm={6} key={sub.id}>
+              <Card
+                sx={{
+                  backgroundColor: "#F0F9FF",
+                  border: "1px solid #00AEEF",
+                  borderRadius: "12px",
                 }}
-              />
-              <button className="cashier-btn" onClick={() => increment(sub.id)}>+</button>
-              {ticketType && (
-                <span className="cashier-price"> ${count * price}</span>
-              )}
-            </div>
+              >
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ color: "#333", fontWeight: 500 }}>
+                    {sub.name} — ${sub.price}
+                  </Typography>
+
+                  <Box display="flex" alignItems="center" mt={1}>
+                    <IconButton onClick={() => decrement(sub.id)} sx={{ color: "#007EA7" }}>
+                      <RemoveIcon />
+                    </IconButton>
+
+                    <TextField
+                      size="small"
+                      value={ticketCounts[sub.id] || "0"}
+                      onChange={(e) => handleInputChange(sub.id, e.target.value)}
+                      inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                      sx={{
+                        width: "60px",
+                        mx: 1,
+                        "& input": { textAlign: "center" },
+                      }}
+                    />
+
+                    <IconButton onClick={() => increment(sub.id)} sx={{ color: "#007EA7" }}>
+                      <AddIcon />
+                    </IconButton>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           );
         })}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 };
 

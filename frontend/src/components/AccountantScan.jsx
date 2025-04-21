@@ -173,6 +173,7 @@ const AccountantScan = () => {
         onKeyDown={handleInputKey}
         fullWidth
         autoFocus
+        inputRef={(input) => input && input.focus()}
         sx={{ mb: 2 }}
       />
 

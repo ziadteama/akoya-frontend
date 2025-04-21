@@ -1,16 +1,33 @@
 import React from "react";
-import { Grid, Card, CardActionArea, CardContent, Typography } from "@mui/material";
+import { Grid, Card, CardActionArea, CardContent, Typography, Box } from "@mui/material";
 
 const TicketCategoryPanel = ({ types, onSelectCategory }) => {
   const uniqueCategories = [...new Set(types.map((type) => type.category))];
 
   return (
-    <div style={{ padding: "8px" }}>
-      <Typography variant="h6" sx={{ fontWeight: "bold", color: "#007EA7", mb: 2 }}>
+    <Box
+      sx={{
+        height: "calc(100vh - 100px)", // adjust based on top bar
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        overflowY: "auto",
+        px: 2,
+      }}
+    >
+      <Typography
+        variant="h6"
+        sx={{
+          fontWeight: "bold",
+          color: "#007EA7",
+          mb: 2,
+          textAlign: "center"
+        }}
+      >
         Select Ticket Category
       </Typography>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} justifyContent="center">
         {uniqueCategories.map((category, index) => (
           <Grid item xs={12} key={index}>
             <Card
@@ -39,7 +56,7 @@ const TicketCategoryPanel = ({ types, onSelectCategory }) => {
           </Grid>
         ))}
       </Grid>
-    </div>
+    </Box>
   );
 };
 

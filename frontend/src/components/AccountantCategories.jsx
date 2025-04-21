@@ -133,13 +133,13 @@ const AccountantCategories = () => {
   };
 
   return (
-    <Paper sx={{ padding: 2, maxWidth: 1200, margin: "auto", marginTop: 3 }}>
+    <Paper sx={{ padding: 2, maxWidth: 1200, margin: "auto", marginTop: 3,background:"#DCDEE0" }}>
       <Typography variant="h4" sx={{ marginBottom: 2 }}>
         Manage Ticket Categories
       </Typography>
 
       {/* Table */}
-      <TableContainer component={Paper}>
+      <TableContainer sx={{background:"#DCDEE0"}} component={Paper}>
         <Table>
           <TableHead>
             <TableRow>

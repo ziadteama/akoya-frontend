@@ -19,7 +19,7 @@ const AccountantSidebar = () => {
     flexShrink: 0,
     "& .MuiDrawer-paper": {
       width: "250px",
-      background: "#f8f9fa",
+      background: "#DADDE4",
       color: "#000", 
       boxSizing: "border-box",
     },

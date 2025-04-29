@@ -12,7 +12,7 @@ const AccountantDashboard = () => {
 
       {/* Main Area */}
       <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-        <AccountantTopBar title="Accountant Dashboard" />
+        <AccountantTopBar />
 
         <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2 }}>
           <Outlet />

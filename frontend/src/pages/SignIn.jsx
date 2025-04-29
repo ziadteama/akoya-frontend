@@ -33,7 +33,7 @@ const Login = () => {
       if (response.data && response.data.role) {
         localStorage.setItem("userRole", response.data.role);
         localStorage.setItem("userName", response.data.name);
-        localStorage.setItem("userId", response.data.user_id);
+        localStorage.setItem("userId", response.data.id);
         redirectToDashboard(response.data.role);
       } else {
         setError(response.data.message || "Invalid credentials");

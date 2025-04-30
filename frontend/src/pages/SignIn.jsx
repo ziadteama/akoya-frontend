@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import {useState}  from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -8,12 +8,6 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const userRole = localStorage.getItem("userRole");
-    if (userRole) {
-      redirectToDashboard(userRole);
-    }
-  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();

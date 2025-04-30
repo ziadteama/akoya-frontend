@@ -33,7 +33,7 @@ const CashierDashboard = () => {
     setTicketCounts(updatedCounts);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = (description) => {
     const ticketsToSell = Object.entries(ticketCounts)
       .filter(([id, qty]) => Number(qty) > 0)
       .map(([id, qty]) => ({
@@ -47,8 +47,6 @@ const CashierDashboard = () => {
     }
 
     const user_id = parseInt(localStorage.getItem("userId"));
-    console.log("User ID:", user_id);
-    const description = "Standard checkout by cashier"; // optional, can use input
 
     if (!user_id) {
       alert("User not authenticated. Please log in.");

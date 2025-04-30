@@ -120,6 +120,8 @@ const CashierDashboard = () => {
                   ticketCounts={ticketCounts}
                   types={types}
                   onCheckout={handleCheckout}
+                  onRemoveCategory={handleRemoveCategory}
+
                   onClear={() => {
                     setTicketCounts({});
                     setSelectedCategories([]);

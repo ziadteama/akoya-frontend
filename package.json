@@ -5,17 +5,13 @@
   "scripts": {
     "start": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "dev:react": "cd frontend && npm run dev",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "build": "cd frontend && npm run build && electron-builder"
+    "dev:electron": "wait-on http://localhost:5173 && electron ."
   },
-  "dependencies": {
-  "electron": "^27.3.2"
-},
-"devDependencies": {
-  "electron-builder": "^24.10.2",
-  "concurrently": "^8.2.0",
-  "wait-on": "^7.2.0"
-},
-
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^36.2.1",
+    "electron-builder": "^24.10.2",
+    "wait-on": "^7.2.0"
+  },
   "type": "module"
 }

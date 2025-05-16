@@ -9,12 +9,13 @@
     "build": "cd frontend && npm run build && electron-builder"
   },
   "dependencies": {
-    "electron": "^latest"
-  },
-  "devDependencies": {
-    "electron-builder": "^latest",
-    "concurrently": "^latest",
-    "wait-on": "^latest"
-  },
+  "electron": "^27.3.2"
+},
+"devDependencies": {
+  "electron-builder": "^24.10.2",
+  "concurrently": "^8.2.0",
+  "wait-on": "^7.2.0"
+},
+
   "type": "module"
 }

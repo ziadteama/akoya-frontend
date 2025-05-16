@@ -33,47 +33,12 @@ const CashierDashboard = () => {
     setTicketCounts(updatedCounts);
   };
 
-  const handleCheckout = (description) => {
-    const ticketsToSell = Object.entries(ticketCounts)
-      .filter(([id, qty]) => Number(qty) > 0)
-      .map(([id, qty]) => ({
-        ticket_type_id: parseInt(id),
-        quantity: parseInt(qty),
-      }));
+  const handleCheckout = () => {
+  setSnackbarOpen(true);
+  setTicketCounts({});
+  setSelectedCategories([]);
+};
 
-    if (ticketsToSell.length === 0) {
-      console.warn("No tickets to checkout");
-      return;
-    }
-
-    const user_id = parseInt(localStorage.getItem("userId"));
-
-    if (!user_id) {
-      alert("User not authenticated. Please log in.");
-      return;
-    }
-
-    fetch("http://localhost:3000/api/tickets/sell", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id,
-        description,
-        tickets: ticketsToSell,
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Checkout failed");
-        setSnackbarOpen(true);
-        setTicketCounts({});
-        setSelectedCategories([]);
-      })
-      .catch((err) => {
-        console.error("Checkout error:", err.message);
-        alert("Checkout failed: " + err.message);
-      });
-  };
 
   return (
     <Box sx={{ backgroundColor: "#F0F9FF", minHeight: "100vh" }}>

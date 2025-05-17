@@ -14,8 +14,9 @@ import {
   MenuItem,
   Select,
   InputLabel,
-  FormControl
+  FormControl,
 } from "@mui/material";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
 
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0 });
+
   const getAmount = (method) => amounts[method] || 0;
   const setAmount = (method, value) =>
     setAmounts((prev) => ({ ...prev, [method]: Number(value) }));
@@ -50,7 +52,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   );
   const finalTotal = ticketTotal + mealTotal;
 
-  // Auto-fill logic for 1 method (optional safety)
+  // Autofill amount if exactly one method is selected
   useEffect(() => {
     if (!postponed && selectedMethods.length === 1) {
       setAmounts((prev) => ({
@@ -60,7 +62,19 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     }
   }, [postponed, selectedMethods, finalTotal]);
 
-  // Compute entered amount safely
+  // Reset to 0 if multiple methods selected
+  useEffect(() => {
+    if (!postponed && selectedMethods.length > 1) {
+      setAmounts((prev) => {
+        const updated = { ...prev };
+        selectedMethods.forEach((method) => {
+          updated[method] = 0;
+        });
+        return updated;
+      });
+    }
+  }, [postponed, selectedMethods]);
+
   const enteredTotal = useMemo(() => {
     if (postponed) return finalTotal;
     if (selectedMethods.length === 1) return finalTotal;
@@ -88,21 +102,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       return;
     }
 
-    let paymentData;
-
-    if (postponed) {
-      paymentData = [{ method: "postponed", amount: parseFloat(finalTotal.toFixed(2)) }];
-    } else if (selectedMethods.length === 1) {
-      paymentData = [{
-        method: selectedMethods[0],
-        amount: parseFloat(finalTotal.toFixed(2))
-      }];
-    } else {
-      paymentData = selectedMethods.map((method) => ({
-        method,
-        amount: parseFloat((amounts[method] || 0).toFixed(2))
-      })).filter((p) => p.amount > 0);
-    }
+    const payments = postponed
+      ? [{ method: "postponed", amount: parseFloat(finalTotal.toFixed(2)) }]
+      : selectedMethods.map((method) => ({
+          method,
+          amount: parseFloat((amounts[method] || 0).toFixed(2))
+        })).filter((p) => p.amount > 0);
 
     const tickets = selected.map((t) => ({
       ticket_type_id: parseInt(t.id, 10),
@@ -122,7 +127,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       user_id,
       description: description.trim(),
       tickets,
-      payments: paymentData,
+      payments,
       meals: mealsPayload
     };
 
@@ -204,12 +209,15 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
 
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6">Final Total: EGP {finalTotal.toFixed(2)}</Typography>
-        <Button variant="contained" sx={{ mt: 2 }} onClick={() => setOpen(true)}>
-          Checkout
-        </Button>
-        <Button variant="outlined" sx={{ mt: 1, ml: 2 }} color="error" onClick={onClear}>
-          Clear
-        </Button>
+
+        <Box mt={2} display="flex" gap={2}>
+          <Button variant="contained" fullWidth onClick={() => setOpen(true)}>
+            Checkout
+          </Button>
+          <Button variant="outlined" fullWidth color="error" onClick={onClear}>
+            Clear
+          </Button>
+        </Box>
       </Box>
 
       <Dialog open={open} onClose={() => setOpen(false)}>
@@ -238,26 +246,20 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
           {!postponed && (
             <>
               <Typography variant="subtitle1" sx={{ mt: 2, fontWeight: "bold" }}>
-                💳 Select Payment Methods
+                💳 Select Payment Method(s)
               </Typography>
 
-              {["visa", "cash", "vodafone_cash"].map((method) => (
-                <FormControlLabel
-                  key={method}
-                  control={
-                    <Checkbox
-                      checked={selectedMethods.includes(method)}
-                      onChange={(e) => {
-                        const updated = e.target.checked
-                          ? [...selectedMethods, method]
-                          : selectedMethods.filter((m) => m !== method);
-                        setSelectedMethods(updated);
-                      }}
-                    />
-                  }
-                  label={method.replace("_", " ").toUpperCase()}
-                />
-              ))}
+              <ToggleButtonGroup
+                value={selectedMethods}
+                onChange={(_, newMethods) => setSelectedMethods(newMethods)}
+                aria-label="payment methods"
+              >
+                {["visa", "cash", "vodafone_cash"].map((method) => (
+                  <ToggleButton key={method} value={method} aria-label={method}>
+                    {method.replace("_", " ").toUpperCase()}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
 
               {selectedMethods.length === 1 ? (
                 <TextField

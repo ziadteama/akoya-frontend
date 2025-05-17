@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import {
   Box,
   Typography,
   Button,
   Divider,
-  Stack,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,15 +33,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, onRemoveCateg
   if (selected.length === 0) return null;
 
   const handleConfirm = async () => {
-    // Convert user_id to a proper number and validate
     const user_id = parseInt(localStorage.getItem("userId"), 10);
-    
-    if (isNaN(user_id) || !user_id) {
+    if (!user_id || isNaN(user_id)) {
       alert("Missing or invalid user ID.");
       return;
     }
 
-    // Create payments array with properly converted number values
     const payments = postponed
       ? [{ method: "postponed", amount: parseFloat(total.toFixed(2)) }]
       : [
@@ -52,43 +47,46 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, onRemoveCateg
           { method: "vodafone_cash", amount: parseFloat(Number(vodafoneAmount).toFixed(2)) }
         ].filter(p => p.amount > 0);
 
-    // Ensure ticket quantities are valid numbers
     const tickets = selected.map((t) => ({
       ticket_type_id: parseInt(t.id, 10),
       quantity: parseInt(ticketCounts[t.id], 10)
     }));
 
-    const payload = { 
-      user_id, 
-      description: description.trim(), 
-      tickets, 
-      payments 
+    const payload = {
+      user_id,
+      description: description.trim(),
+      tickets,
+      payments
     };
 
     console.log("📦 Final payload:", JSON.stringify(payload, null, 2));
 
     if (payments.length === 0) {
-      alert("Please enter at least one payment amount or select Postponed.");
+      alert("Please enter at least one payment method or select Postponed.");
       return;
     }
 
-    if (!postponed && Math.abs(remaining) > 0.01) {  // Allow for tiny floating point differences
+    if (!postponed && Math.abs(remaining) > 0.01) {
       alert("Paid amount doesn't match required total.");
       return;
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/tickets/sell", 
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      console.log("Success response:", response.data);
+      const response = await fetch("http://localhost:3000/api/tickets/sell", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        console.error("Checkout failed:", errData);
+        alert("Checkout failed: " + (errData?.message || response.statusText));
+        return;
+      }
+
       onCheckout();
       setOpen(false);
       setDescription("");
@@ -97,9 +95,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, onRemoveCateg
       setVodafoneAmount(0);
       setPostponed(false);
     } catch (error) {
-      console.error("Checkout failed:", error);
-      console.error("Error response:", error.response?.data);
-      alert(`Checkout failed: ${error.response?.data?.message || error.message}`);
+      console.error("Network error during checkout:", error);
+      alert("Network error. Please try again.");
     }
   };
 
@@ -114,6 +111,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, onRemoveCateg
         <Typography variant="subtitle1" sx={{ fontWeight: "bold", color: "#007EA7", mb: 2 }}>
           🧾 Order Summary
         </Typography>
+        <Box>
+          {selected.map((t) => (
+            <Typography key={t.id}>
+              {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP {(ticketCounts[t.id] * t.price).toFixed(2)}
+            </Typography>
+          ))}
+        </Box>
+        <Divider sx={{ my: 2 }} />
         <Typography variant="h6">Total: EGP {total.toFixed(2)}</Typography>
         <Button variant="contained" sx={{ mt: 2 }} onClick={() => setOpen(true)}>Checkout</Button>
         <Button variant="outlined" sx={{ mt: 1, ml: 2 }} color="error" onClick={onClear}>Clear</Button>

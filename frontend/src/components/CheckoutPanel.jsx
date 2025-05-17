@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -20,14 +20,17 @@ import {
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
-  const [visaAmount, setVisaAmount] = useState(0);
-  const [cashAmount, setCashAmount] = useState(0);
-  const [vodafoneAmount, setVodafoneAmount] = useState(0);
   const [postponed, setPostponed] = useState(false);
   const [mealCounts, setMealCounts] = useState({});
   const [meals, setMeals] = useState([]);
   const [selectedMealId, setSelectedMealId] = useState("");
   const [customMealQty, setCustomMealQty] = useState(1);
+
+  const [selectedMethods, setSelectedMethods] = useState([]);
+  const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0 });
+  const getAmount = (method) => amounts[method] || 0;
+  const setAmount = (method, value) =>
+    setAmounts((prev) => ({ ...prev, [method]: Number(value) }));
 
   useEffect(() => {
     fetch("http://localhost:3000/api/meals?archived=false")
@@ -42,15 +45,33 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     0
   );
   const mealTotal = meals.reduce(
-    (sum, m) => sum + (mealCounts[m.id] || 0) * m.price, 0
+    (sum, m) => sum + (mealCounts[m.id] || 0) * m.price,
+    0
   );
   const finalTotal = ticketTotal + mealTotal;
-  const enteredTotal = Number(visaAmount) + Number(cashAmount) + Number(vodafoneAmount);
+
+  // Auto-fill logic for 1 method (optional safety)
+  useEffect(() => {
+    if (!postponed && selectedMethods.length === 1) {
+      setAmounts((prev) => ({
+        ...prev,
+        [selectedMethods[0]]: finalTotal
+      }));
+    }
+  }, [postponed, selectedMethods, finalTotal]);
+
+  // Compute entered amount safely
+  const enteredTotal = useMemo(() => {
+    if (postponed) return finalTotal;
+    if (selectedMethods.length === 1) return finalTotal;
+    return selectedMethods.reduce((sum, method) => sum + getAmount(method), 0);
+  }, [postponed, selectedMethods, finalTotal, amounts]);
+
   const remaining = finalTotal - enteredTotal;
 
   const handleAddMeal = () => {
     if (!selectedMealId || customMealQty <= 0) return;
-    setMealCounts(prev => ({
+    setMealCounts((prev) => ({
       ...prev,
       [selectedMealId]: (prev[selectedMealId] || 0) + Number(customMealQty)
     }));
@@ -67,13 +88,21 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       return;
     }
 
-    const payments = postponed
-      ? [{ method: "postponed", amount: parseFloat(finalTotal.toFixed(2)) }]
-      : [
-          { method: "visa", amount: parseFloat(Number(visaAmount).toFixed(2)) },
-          { method: "cash", amount: parseFloat(Number(cashAmount).toFixed(2)) },
-          { method: "vodafone_cash", amount: parseFloat(Number(vodafoneAmount).toFixed(2)) }
-        ].filter(p => p.amount > 0);
+    let paymentData;
+
+    if (postponed) {
+      paymentData = [{ method: "postponed", amount: parseFloat(finalTotal.toFixed(2)) }];
+    } else if (selectedMethods.length === 1) {
+      paymentData = [{
+        method: selectedMethods[0],
+        amount: parseFloat(finalTotal.toFixed(2))
+      }];
+    } else {
+      paymentData = selectedMethods.map((method) => ({
+        method,
+        amount: parseFloat((amounts[method] || 0).toFixed(2))
+      })).filter((p) => p.amount > 0);
+    }
 
     const tickets = selected.map((t) => ({
       ticket_type_id: parseInt(t.id, 10),
@@ -81,7 +110,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     }));
 
     const mealsPayload = Object.entries(mealCounts).map(([meal_id, quantity]) => {
-      const meal = meals.find(m => m.id === parseInt(meal_id));
+      const meal = meals.find((m) => m.id === parseInt(meal_id));
       return {
         meal_id: parseInt(meal_id),
         quantity,
@@ -93,7 +122,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       user_id,
       description: description.trim(),
       tickets,
-      payments,
+      payments: paymentData,
       meals: mealsPayload
     };
 
@@ -113,9 +142,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       onCheckout();
       setOpen(false);
       setDescription("");
-      setVisaAmount(0);
-      setCashAmount(0);
-      setVodafoneAmount(0);
+      setSelectedMethods([]);
+      setAmounts({ visa: 0, cash: 0, vodafone_cash: 0 });
       setPostponed(false);
       setMealCounts({});
     } catch (error) {
@@ -129,7 +157,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
         <Typography variant="h6">🧾 Order Summary</Typography>
         {selected.map((t) => (
           <Typography key={t.id}>
-            {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP {(ticketCounts[t.id] * t.price).toFixed(2)}
+            {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP{" "}
+            {(ticketCounts[t.id] * t.price).toFixed(2)}
           </Typography>
         ))}
 
@@ -156,14 +185,18 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
               value={customMealQty}
               onChange={(e) => setCustomMealQty(e.target.value)}
             />
-            <Button variant="outlined" onClick={handleAddMeal}>Add Meal</Button>
+            <Button variant="outlined" onClick={handleAddMeal}>
+              Add Meal
+            </Button>
           </Box>
 
           <Box mt={2}>
             {Object.entries(mealCounts).map(([id, qty]) => {
-              const meal = meals.find(m => m.id === parseInt(id));
+              const meal = meals.find((m) => m.id === parseInt(id));
               return (
-                <Typography key={id}>{meal?.name} × {qty} = EGP {(meal?.price * qty).toFixed(2)}</Typography>
+                <Typography key={id}>
+                  {meal?.name} × {qty} = EGP {(meal?.price * qty).toFixed(2)}
+                </Typography>
               );
             })}
           </Box>
@@ -171,8 +204,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
 
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6">Final Total: EGP {finalTotal.toFixed(2)}</Typography>
-        <Button variant="contained" sx={{ mt: 2 }} onClick={() => setOpen(true)}>Checkout</Button>
-        <Button variant="outlined" sx={{ mt: 1, ml: 2 }} color="error" onClick={onClear}>Clear</Button>
+        <Button variant="contained" sx={{ mt: 2 }} onClick={() => setOpen(true)}>
+          Checkout
+        </Button>
+        <Button variant="outlined" sx={{ mt: 1, ml: 2 }} color="error" onClick={onClear}>
+          Clear
+        </Button>
       </Box>
 
       <Dialog open={open} onClose={() => setOpen(false)}>
@@ -187,16 +224,67 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
             multiline
             minRows={3}
           />
+
           <FormControlLabel
-            control={<Checkbox checked={postponed} onChange={(e) => setPostponed(e.target.checked)} />}
+            control={
+              <Checkbox
+                checked={postponed}
+                onChange={(e) => setPostponed(e.target.checked)}
+              />
+            }
             label="Postponed Payment"
           />
+
           {!postponed && (
             <>
-              <TextField label="Visa" type="number" value={visaAmount} onChange={(e) => setVisaAmount(e.target.value)} fullWidth margin="dense" />
-              <TextField label="Cash" type="number" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} fullWidth margin="dense" />
-              <TextField label="Vodafone" type="number" value={vodafoneAmount} onChange={(e) => setVodafoneAmount(e.target.value)} fullWidth margin="dense" />
-              <Typography sx={{ mt: 1 }} color={Math.abs(remaining) < 0.01 ? "green" : "red"}>
+              <Typography variant="subtitle1" sx={{ mt: 2, fontWeight: "bold" }}>
+                💳 Select Payment Methods
+              </Typography>
+
+              {["visa", "cash", "vodafone_cash"].map((method) => (
+                <FormControlLabel
+                  key={method}
+                  control={
+                    <Checkbox
+                      checked={selectedMethods.includes(method)}
+                      onChange={(e) => {
+                        const updated = e.target.checked
+                          ? [...selectedMethods, method]
+                          : selectedMethods.filter((m) => m !== method);
+                        setSelectedMethods(updated);
+                      }}
+                    />
+                  }
+                  label={method.replace("_", " ").toUpperCase()}
+                />
+              ))}
+
+              {selectedMethods.length === 1 ? (
+                <TextField
+                  label={selectedMethods[0].replace("_", " ").toUpperCase()}
+                  type="number"
+                  value={finalTotal.toFixed(2)}
+                  disabled
+                  fullWidth
+                  sx={{ mt: 2 }}
+                />
+              ) : (
+                <Box display="flex" gap={2} mt={2}>
+                  {selectedMethods.map((method) => (
+                    <TextField
+                      key={method}
+                      label={method.replace("_", " ").toUpperCase()}
+                      type="number"
+                      inputProps={{ step: "any", min: 0 }}
+                      value={getAmount(method)}
+                      onChange={(e) => setAmount(method, e.target.value)}
+                      fullWidth
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <Typography sx={{ mt: 2 }} color={Math.abs(remaining) < 0.01 ? "green" : "red"}>
                 Remaining: EGP {remaining.toFixed(2)}
               </Typography>
             </>
@@ -204,7 +292,11 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleConfirm} variant="contained" disabled={!postponed && Math.abs(remaining) > 0.01}>
+          <Button
+            onClick={handleConfirm}
+            variant="contained"
+            disabled={!postponed && Math.abs(remaining) > 0.01}
+          >
             Confirm
           </Button>
         </DialogActions>

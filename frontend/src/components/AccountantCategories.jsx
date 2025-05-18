@@ -173,7 +173,7 @@ const AccountantCategories = () => {
                             sx={{ width: "100px" }}
                           />
                         ) : (
-                          `$${ticket.price}`
+                          `${ticket.price}EGP`
                         )}
                       </TableCell>
                       <TableCell align="center">

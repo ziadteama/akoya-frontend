@@ -58,6 +58,9 @@ const TicketSelectorPanel = ({
               py: 2
             }}
           >
+
+
+
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6" sx={{ color: "#007EA7", fontWeight: "bold" }}>
                 {category}
@@ -76,7 +79,7 @@ const TicketSelectorPanel = ({
                 <Box key={type.id} textAlign="center">
                   <Typography sx={{ fontSize: 14 }}>{type.name}</Typography>
                   <Typography sx={{ fontSize: 12, mb: 1 }}>
-                    {type.subcategory} - ${type.price}
+                    {type.subcategory} - {type.price} EGP
                   </Typography>
 
                   <Box display="flex" alignItems="center" justifyContent="center">

@@ -10,6 +10,9 @@ import {
   Paper,
   Typography,
   Button,
+  Box,
+  FormControlLabel,
+  Switch
 } from "@mui/material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -19,13 +22,23 @@ import { saveAs } from "file-saver";
 
 const AccountantReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [fromDate, setFromDate] = useState(dayjs());
+  const [toDate, setToDate] = useState(dayjs());
+  const [useRange, setUseRange] = useState(false);
   const [reportData, setReportData] = useState([]);
 
-  const fetchReport = async (date) => {
+  const fetchReport = async () => {
     try {
-      const { data } = await axios.get("http://localhost:3000/api/tickets/day-report", {
-        params: { date },
-      });
+      const params = useRange
+        ? { startDate: fromDate.format("YYYY-MM-DD"), endDate: toDate.format("YYYY-MM-DD") }
+        : { date: selectedDate.format("YYYY-MM-DD") };
+
+      const endpoint = useRange
+        ? "http://localhost:3000/api/tickets/between-dates-report"
+        : "http://localhost:3000/api/tickets/day-report";
+
+      const { data } = await axios.get(endpoint, { params });
+      console.log("Report Data:", data);
       setReportData(data);
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -33,16 +46,15 @@ const AccountantReports = () => {
   };
 
   useEffect(() => {
-    fetchReport(selectedDate.format("YYYY-MM-DD"));
-  }, [selectedDate]);
+    fetchReport();
+  }, [selectedDate, fromDate, toDate, useRange]);
 
   const groupedData = reportData.reduce((acc, row) => {
-    if (!acc[row.category]) {
-      acc[row.category] = [];
-    }
-    acc[row.category].push(row);
-    return acc;
-  }, {});
+  const key = row.category || "Uncategorized";
+  if (!acc[key]) acc[key] = [];
+  acc[key].push(row);
+  return acc;
+}, {});
 
   const totalRevenue = reportData.reduce((sum, row) => sum + Number(row.total_revenue || 0), 0);
   const totalTicketsSold = reportData.reduce((sum, row) => sum + Number(row.total_tickets || 0), 0);
@@ -53,7 +65,10 @@ const AccountantReports = () => {
       csvContent += `${row.category},${row.subcategory},${row.total_tickets},${row.total_revenue}\n`;
     });
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `Report_${selectedDate.format("YYYY-MM-DD")}.csv`);
+    const filename = useRange
+      ? `Report_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`
+      : `Report_${selectedDate.format("YYYY-MM-DD")}.csv`;
+    saveAs(blob, filename);
   };
 
   const zebraColors = ["#E4F8FC", "#D1F2F5"];
@@ -76,13 +91,25 @@ const AccountantReports = () => {
           Day Reports
         </Typography>
 
-        <DatePicker
-          label="Select Date"
-          value={selectedDate}
-          onChange={(newValue) => setSelectedDate(newValue)}
-          renderInput={(params) => <TextField {...params} />}
-          sx={{ mb: 3, backgroundColor: "#fff", borderRadius: 1 }}
+        <FormControlLabel
+          control={<Switch checked={useRange} onChange={(e) => setUseRange(e.target.checked)} />}
+          label={useRange ? "Using Date Range" : "Using Single Date"}
+          sx={{ mb: 2 }}
         />
+
+        {useRange ? (
+          <Box display="flex" gap={2} mb={3}>
+            <DatePicker label="From" value={fromDate} onChange={(newVal) => { setFromDate(newVal); fetchReport(); }} />
+            <DatePicker label="To" value={toDate} onChange={(newVal) => { setToDate(newVal); fetchReport(); }} />
+          </Box>
+        ) : (
+          <DatePicker
+            label="Select Date"
+            value={selectedDate}
+            onChange={(newVal) => setSelectedDate(newVal)}
+            sx={{ mb: 3, backgroundColor: "#fff", borderRadius: 1 }}
+          />
+        )}
 
         <div
           style={{
@@ -125,7 +152,7 @@ const AccountantReports = () => {
                         const bgColor = zebraColors[categoryIndex % 2];
                         return (
                           <TableRow
-                            key={`${categoryIndex}-${subIndex}`}
+                            key={`${category}-${subIndex}-${row.subcategory}`}
                             sx={{ backgroundColor: bgColor }}
                           >
                             {subIndex === 0 ? (

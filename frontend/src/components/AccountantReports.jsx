@@ -27,7 +27,7 @@ const AccountantReports = () => {
   const [useRange, setUseRange] = useState(false);
   const [reportData, setReportData] = useState([]);
 
-  const fetchReport = async () => {
+   const fetchReport = async () => {
     try {
       const params = useRange
         ? { startDate: fromDate.format("YYYY-MM-DD"), endDate: toDate.format("YYYY-MM-DD") }
@@ -60,13 +60,21 @@ const AccountantReports = () => {
   const totalTicketsSold = reportData.reduce((sum, row) => sum + Number(row.total_tickets || 0), 0);
 
   const exportCSV = () => {
-    let csvContent = "\uFEFFCategory,Subcategory,Tickets Sold,Total Revenue\n";
+    let csvContent = "﻿";
+    csvContent += useRange
+      ? `From: ${fromDate.format("YYYY-MM-DD")}
+To: ${toDate.format("YYYY-MM-DD")}
+`
+      : `Date: ${selectedDate.format("YYYY-MM-DD")}
+`;
+    csvContent += "Category,Subcategory,Tickets Sold,Total Revenue\n";
     reportData.forEach((row) => {
-      csvContent += `${row.category},${row.subcategory},${row.total_tickets},${row.total_revenue}\n`;
+      csvContent += `${row.category},${row.subcategory},${row.total_tickets},${row.total_revenue}
+`;
     });
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const filename = useRange
-      ? `Report_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`
+      ? `Report_from_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`
       : `Report_${selectedDate.format("YYYY-MM-DD")}.csv`;
     saveAs(blob, filename);
   };

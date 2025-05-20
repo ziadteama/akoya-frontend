@@ -28,6 +28,10 @@ const AccountantReports = () => {
   const [reportData, setReportData] = useState([]);
 
    const fetchReport = async () => {
+    if (useRange && fromDate.isAfter(toDate)) {
+      alert("'From' date cannot be after 'To' date.");
+      return;
+    }
     try {
       const params = useRange
         ? { startDate: fromDate.format("YYYY-MM-DD"), endDate: toDate.format("YYYY-MM-DD") }
@@ -60,6 +64,7 @@ const AccountantReports = () => {
   const totalTicketsSold = reportData.reduce((sum, row) => sum + Number(row.total_tickets || 0), 0);
 
   const exportCSV = () => {
+    if (reportData.length === 0) return;
     let csvContent = "﻿";
     csvContent += useRange
       ? `From: ${fromDate.format("YYYY-MM-DD")}
@@ -96,7 +101,7 @@ To: ${toDate.format("YYYY-MM-DD")}
         }}
       >
         <Typography variant="h4" sx={{ mb: 3, color: "#007EA7", fontWeight: 600 }}>
-          Day Reports
+        Reports
         </Typography>
 
         <FormControlLabel
@@ -107,8 +112,20 @@ To: ${toDate.format("YYYY-MM-DD")}
 
         {useRange ? (
           <Box display="flex" gap={2} mb={3}>
-            <DatePicker label="From" value={fromDate} onChange={(newVal) => { setFromDate(newVal); fetchReport(); }} />
-            <DatePicker label="To" value={toDate} onChange={(newVal) => { setToDate(newVal); fetchReport(); }} />
+            <DatePicker label="From" value={fromDate} onChange={(newVal) => {
+              if (newVal.isAfter(toDate)) {
+                setToDate(newVal);
+              }
+              setFromDate(newVal);
+              fetchReport();
+            }} />
+            <DatePicker label="To" value={toDate} onChange={(newVal) => {
+              if (fromDate.isAfter(newVal)) {
+                setFromDate(newVal);
+              }
+              setToDate(newVal);
+              fetchReport();
+            }} />
           </Box>
         ) : (
           <DatePicker
@@ -214,7 +231,14 @@ To: ${toDate.format("YYYY-MM-DD")}
           </Typography>
           <Button
             variant="contained"
-            sx={{ mt: 2, backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }}
+            disabled={reportData.length === 0}
+            sx={{
+              mt: 2,
+              backgroundColor: reportData.length === 0 ? '#ccc' : '#00AEEF',
+              color: reportData.length === 0 ? '#666' : '#fff',
+              '&:hover': reportData.length === 0 ? {} : { backgroundColor: '#00C2CB' },
+              cursor: reportData.length === 0 ? 'not-allowed' : 'pointer'
+            }}
             onClick={exportCSV}
           >
             Export as CSV

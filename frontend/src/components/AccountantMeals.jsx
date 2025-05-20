@@ -8,14 +8,12 @@ import {
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
 
-const ageGroups = ["child", "adult", "grand"];
-
 const AccountantMeals = () => {
   const [meals, setMeals] = useState([]);
   const [editing, setEditing] = useState({});
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newPrices, setNewPrices] = useState({ child: "", adult: "", grand: "" });
+  const [newPrice, setNewPrice] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -49,21 +47,21 @@ const AccountantMeals = () => {
   };
 
   const handleAddMeal = async () => {
-    if (!newName.trim() || !newDescription.trim() || Object.values(newPrices).some(p => !p || Number(p) <= 0)) {
-      return alert("All fields are required and prices must be > 0");
+    if (!newName.trim() || !newDescription.trim() || !newPrice || Number(newPrice) <= 0) {
+      return alert("All fields are required and price must be > 0");
     }
     try {
       await axios.post("http://localhost:3000/api/meals/add", {
-        meals: ageGroups.map(age_group => ({
+        meals: [{
           name: newName,
-          age_group,
-          price: newPrices[age_group],
-          description: newDescription
-        }))
+          description: newDescription,
+          price: newPrice,
+          age_group: "adult"
+        }]
       });
       setNewName("");
       setNewDescription("");
-      setNewPrices({ child: "", adult: "", grand: "" });
+      setNewPrice("");
       fetchMeals();
     } catch (err) {
       console.error("Error adding meals:", err);
@@ -172,20 +170,15 @@ const AccountantMeals = () => {
         <Typography variant="h6" sx={{ color: "#007EA7" }}>Add New Meal</Typography>
         <TextField label="Meal Name" fullWidth sx={{ mb: 2 }} value={newName} onChange={(e) => setNewName(e.target.value)} />
         <TextField label="Description" fullWidth sx={{ mb: 2 }} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
-        <Box display="flex" gap={2} sx={{ mb: 2 }}>
-          {ageGroups.map((type) => (
-            <TextField
-              key={type}
-              label={`${type.charAt(0).toUpperCase() + type.slice(1)} Price`}
-              type="text"
-              inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0 }}
-              value={newPrices[type]}
-              onChange={(e) => setNewPrices((prev) => ({ ...prev, [type]: e.target.value }))}
-              size="small"
-              sx={{ width: "120px" }}
-            />
-          ))}
-        </Box>
+        <TextField
+          label="Price"
+          fullWidth
+          type="text"
+          inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0 }}
+          value={newPrice}
+          onChange={(e) => setNewPrice(e.target.value)}
+          sx={{ mb: 2 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={handleAddMeal} sx={{ backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }}>
           Add Meal
         </Button>

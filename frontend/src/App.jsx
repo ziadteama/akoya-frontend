@@ -11,6 +11,7 @@ import AccountantDashboard from "./pages/AccountantDashboard";
 import AccountantReports from "./components/AccountantReports";
 import AccountantScan from "./components/AccountantScan";
 import AccountantCategories from "./components/AccountantCategories";
+import AccountantMeals from "./components/AccountantMeals";
 import AccountantGenerate from "./components/AccountantGenerate";
 import "./App.css";
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="accountant-reports" element={<AccountantReports />} />
           <Route path="accountant-scan" element={<AccountantScan />} />
           <Route path="accountant-categories" element={<AccountantCategories />} />
+          <Route path="accountant-meals" element={<AccountantMeals/>} />
           <Route path="accountant-generate" element={<AccountantGenerate />} />
         </Route>
 

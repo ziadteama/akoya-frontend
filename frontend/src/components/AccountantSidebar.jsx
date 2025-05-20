@@ -11,6 +11,7 @@ import {
   QrCodeScanner,
   Category,
   Download,
+  LunchDining
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 
@@ -21,6 +22,7 @@ const AccountantSidebar = () => {
     { text: "Day Reports", icon: <Event />, path: "/accountant/accountant-reports" },
     { text: "Scan Tickets", icon: <QrCodeScanner />, path: "/accountant/accountant-scan" },
     { text: "Manage Categories", icon: <Category />, path: "/accountant/accountant-categories" },
+    { text: "Manage Meals", icon: <LunchDining />, path: "/accountant/accountant-meals" },
     { text: "Generate Tickets", icon: <Download />, path: "/accountant/accountant-generate" },
   ];
 

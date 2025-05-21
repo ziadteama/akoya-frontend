@@ -7,7 +7,6 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Paper,
   Dialog,
   DialogTitle,
   DialogContent,

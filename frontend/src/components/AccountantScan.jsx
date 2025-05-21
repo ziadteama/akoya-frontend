@@ -15,6 +15,7 @@ const AccountantScan = () => {
   const [input, setInput] = useState("");
   const [message, setMessage] = useState({ open: false, text: "", type: "info" });
   const [ticketIds, setTicketIds] = useState([]);
+  const [ticketDetails, setTicketDetails] = useState([]);
   const [types, setTypes] = useState([]);
   const [ticketCounts, setTicketCounts] = useState({});
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -54,6 +55,7 @@ const AccountantScan = () => {
       }
 
       setTicketIds([...ticketIds, id]);
+      setTicketDetails([...ticketDetails, data]);
       showMessage("Ticket added!", "success");
       setInput("");
     } catch (err) {
@@ -99,6 +101,7 @@ const AccountantScan = () => {
       await axios.patch("http://localhost:3000/api/tickets/tickets/assign-types", { assignments });
       showMessage("Tickets assigned!", "success");
       setTicketIds([]);
+      setTicketDetails([]);
       setTicketCounts({});
       setSelectorOpen(false);
     } catch (e) {
@@ -158,17 +161,15 @@ const AccountantScan = () => {
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h6">Ticket IDs: {ticketIds.length}</Typography>
         <List>
-          {ticketIds.map((id) => (
-            <ListItem key={id} secondaryAction={
-              <IconButton onClick={() => setTicketIds(ticketIds.filter((tid) => tid !== id))}>
-                <DeleteIcon />
-              </IconButton>
-            }>
-              <ListItemText primary={`Ticket ID: ${id}`} />
+          {ticketDetails.map((ticket) => (
+            <ListItem key={ticket.id}>
+              <ListItemText
+                primary={`Ticket ID: ${ticket.id} | ${ticket.category} / ${ticket.subcategory}`}
+                secondary={`Created At: ${new Date(ticket.created_at).toLocaleString()}`}
+              />
             </ListItem>
           ))}
         </List>
-
         {ticketIds.length > 0 && (
           <Button
             variant="contained"
@@ -214,11 +215,15 @@ const AccountantScan = () => {
       {/* Sell Panel */}
       {checkoutOpen && (
         <CheckoutPanel
-          ticketCounts={ticketIds.reduce((acc, id) => ({ ...acc, [id]: 1 }), {})}
-          types={ticketIds.map((id) => ({ id, category: "Assigned", subcategory: "", price: 0 }))}
+          ticketCounts={ticketDetails.reduce((acc, t) => {
+            acc[t.ticket_type_id] = (acc[t.ticket_type_id] || 0) + 1;
+            return acc;
+          }, {})}
+          types={types.filter(t => ticketDetails.some(td => td.ticket_type_id === t.id))}
           onCheckout={() => {
             setCheckoutOpen(false);
             setTicketIds([]);
+            setTicketDetails([]);
             showMessage("Tickets sold!", "success");
           }}
           onClear={() => {

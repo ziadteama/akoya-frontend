@@ -99,8 +99,7 @@ const AccountantReports = () => {
       : `Report for ${selectedDate.format("YYYY-MM-DD")}\r\n\r\n`;
 
     if (useOrders) {
-      // Create a more structured CSV for orders
-      // Simplified column structure for better compatibility
+      // Create a CSV for orders
       csvContent += "Order ID,Order Date,User,Total Amount (EGP),Ticket Details,Meal Details,Payment Methods\r\n";
       
       reportData.forEach(order => {
@@ -154,7 +153,7 @@ const AccountantReports = () => {
         csvContent += `${escapeCSV(orderId)},${escapeCSV(orderDate)},${escapeCSV(userName)},${escapeCSV(totalAmount)},${escapeCSV(ticketDetails)},${escapeCSV(mealDetails)},${escapeCSV(paymentMethods)}\r\n`;
       });
       
-      // Add a summary section at the end - keeping the existing implementation as requested
+      // Add a summary section at the end
       csvContent += `\r\n\r\nSUMMARY REPORT\r\n`;
       csvContent += `Total Orders,${reportData.length}\r\n`;
       csvContent += `Total Revenue,${reportData.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0).toFixed(2)}\r\n`;
@@ -236,9 +235,62 @@ const AccountantReports = () => {
       });
       
     } else {
-      csvContent += "Category,Subcategory,Tickets Sold,Total Revenue\r\n";
+      // For tickets mode, use a similar format to orders for consistency
+      csvContent += "Category,Subcategory,Tickets Sold,Total Revenue (EGP),Details\r\n";
+      
       reportData.forEach(row => {
-        csvContent += `${escapeCSV(row.category || 'Unknown')},${escapeCSV(row.subcategory || 'Standard')},${row.total_tickets || 0},${row.total_revenue || 0}\r\n`;
+        const category = row.category || 'Unknown';
+        const subcategory = row.subcategory || 'Standard';
+        const ticketCount = row.total_tickets || 0;
+        const revenue = parseFloat(row.total_revenue || 0).toFixed(2);
+        const details = `${ticketCount} tickets sold at average price ${(revenue / (ticketCount || 1)).toFixed(2)}`;
+        
+        csvContent += `${escapeCSV(category)},${escapeCSV(subcategory)},${ticketCount},${revenue},${escapeCSV(details)}\r\n`;
+      });
+      
+      // Add summary section similar to orders report
+      csvContent += `\r\n\r\nSUMMARY REPORT\r\n`;
+      csvContent += `Total Categories,${reportData.length}\r\n`;
+      csvContent += `Total Tickets Sold,${reportData.reduce((sum, row) => sum + (Number(row.total_tickets) || 0), 0)}\r\n`;
+      csvContent += `Total Revenue,${reportData.reduce((sum, row) => sum + parseFloat(row.total_revenue || 0), 0).toFixed(2)}\r\n`;
+      
+      // Breakdown by category
+      csvContent += `\r\nCATEGORY BREAKDOWN\r\n`;
+      csvContent += `Category,Tickets Sold,Revenue,Percentage of Total\r\n`;
+      
+      const categoryTotals = {};
+      const totalRevenueAll = reportData.reduce((sum, row) => sum + parseFloat(row.total_revenue || 0), 0);
+      
+      reportData.forEach(row => {
+        const category = row.category || 'Unknown';
+        
+        if (!categoryTotals[category]) {
+          categoryTotals[category] = {
+            tickets: 0,
+            revenue: 0
+          };
+        }
+        
+        categoryTotals[category].tickets += (Number(row.total_tickets) || 0);
+        categoryTotals[category].revenue += parseFloat(row.total_revenue || 0);
+      });
+      
+      Object.entries(categoryTotals).forEach(([category, data]) => {
+        const percentage = ((data.revenue / totalRevenueAll) * 100).toFixed(2);
+        csvContent += `${escapeCSV(category)},${data.tickets},${data.revenue.toFixed(2)},${percentage}%\r\n`;
+      });
+      
+      // Breakdown by subcategory within each category
+      csvContent += `\r\nSUBCATEGORY BREAKDOWN\r\n`;
+      csvContent += `Category,Subcategory,Tickets Sold,Revenue\r\n`;
+      
+      reportData.forEach(row => {
+        const category = row.category || 'Unknown';
+        const subcategory = row.subcategory || 'Standard';
+        const tickets = Number(row.total_tickets) || 0;
+        const revenue = parseFloat(row.total_revenue || 0).toFixed(2);
+        
+        csvContent += `${escapeCSV(category)},${escapeCSV(subcategory)},${tickets},${revenue}\r\n`;
       });
     }
 

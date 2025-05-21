@@ -47,8 +47,8 @@ const AccountantScan = () => {
         return;
       }
 
-      if (data.status !== "available") {
-        showMessage("Ticket already sold", "error");
+      if (data.status !== "available" || data.ticket_type_id !== null) {
+        showMessage("Ticket already assigned or sold", "error");
         return;
       }
 
@@ -124,6 +124,12 @@ const AccountantScan = () => {
       });
   }, []);
 
+  const groupedTypes = types.reduce((acc, type) => {
+    if (!acc[type.category]) acc[type.category] = [];
+    acc[type.category].push(type);
+    return acc;
+  }, {});
+
   return (
     <Box p={3}>
       <Typography variant="h4" mb={2}>Manage Tickets</Typography>
@@ -177,16 +183,21 @@ const AccountantScan = () => {
       <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Increment Ticket Counts by Category</DialogTitle>
         <Box p={3}>
-          {types.map((type) => (
-            <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography>{type.category} - {type.subcategory}</Typography>
-              <Box>
-                <Button variant="outlined" onClick={() => handleIncrement(type.id)}>
-                  +
-                </Button>
-                <Typography display="inline" sx={{ mx: 2 }}>{ticketCounts[type.id] || 0}</Typography>
-              </Box>
-            </Paper>
+          {Object.entries(groupedTypes).map(([category, subtypes]) => (
+            <Box key={category} sx={{ mb: 2 }}>
+              <Typography variant="h6" gutterBottom>{category}</Typography>
+              {subtypes.map((type) => (
+                <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography>{type.subcategory}</Typography>
+                  <Box>
+                    <Button variant="outlined" onClick={() => handleIncrement(type.id)}>
+                      +
+                    </Button>
+                    <Typography display="inline" sx={{ mx: 2 }}>{ticketCounts[type.id] || 0}</Typography>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
           ))}
           <Button
             variant="contained"
@@ -229,4 +240,4 @@ const AccountantScan = () => {
   );
 };
 
-export default AccountantScan;
+export default AccountantScan;  

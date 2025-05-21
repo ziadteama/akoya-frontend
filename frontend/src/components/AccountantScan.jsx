@@ -47,8 +47,9 @@ const AccountantScan = () => {
         return;
       }
 
-      if (data.status !== "available" || data.ticket_type_id !== null) {
-        showMessage("Ticket already assigned or sold", "error");
+      if ((mode === "assign" && (data.status !== "available" || data.ticket_type_id !== null)) ||
+        (mode === "sell" && data.status !== "available")) {
+        showMessage("Ticket is not available for this operation", "error");
         return;
       }
 
@@ -240,4 +241,4 @@ const AccountantScan = () => {
   );
 };
 
-export default AccountantScan;  
+export default AccountantScan;

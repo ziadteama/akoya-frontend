@@ -1,225 +1,219 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Paper,
-  Snackbar,
-  Alert,
-  ToggleButtonGroup,
-  ToggleButton,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Divider,
+  Box, Typography, TextField, Button, Paper, Snackbar, Alert,
+  ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, IconButton, Dialog, DialogTitle
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
+import CheckoutPanel from "./CheckoutPanel";
+import TicketCategoryPanel from "./TicketCategoryPanel";
 
 const beep = () => window.navigator.vibrate?.(150);
 
 const AccountantScan = () => {
-  const [mode, setMode] = useState("validate");
+  const [mode, setMode] = useState("assign");
   const [input, setInput] = useState("");
-  const [message, setMessage] = useState({
-    open: false,
-    text: "",
-    type: "info",
-  });
-  const [validatedTicket, setValidatedTicket] = useState(null);
-  const [orderList, setOrderList] = useState([]);
+  const [message, setMessage] = useState({ open: false, text: "", type: "info" });
+  const [ticketIds, setTicketIds] = useState([]);
+  const [types, setTypes] = useState([]);
+  const [ticketCounts, setTicketCounts] = useState({});
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const showMessage = (text, type = "info") => {
     setMessage({ open: true, text, type });
     if (type === "error") beep();
   };
 
-  const handleValidate = async () => {
-    if (!input.trim()) return;
+  const handleAddTicketId = async () => {
+    const id = parseInt(input.trim(), 10);
+    if (!id || isNaN(id)) return;
+
+    if (ticketIds.includes(id)) {
+      showMessage("Already added", "warning");
+      return;
+    }
 
     try {
-      const { data } = await axios.get(
-        `http://localhost:3000/api/tickets/ticket/${input.trim()}`
-      );
-      setValidatedTicket(data);
+      const { data } = await axios.get(`http://localhost:3000/api/tickets/ticket/${id}`);
+
+      if (!data || typeof data !== 'object') {
+        showMessage("Unexpected response format", "error");
+        return;
+      }
 
       if (!data.valid) {
         showMessage("Ticket is invalid", "error");
-      } else {
-        showMessage("Ticket is valid!", "success");
-      }
-    } catch (err) {
-      console.error("Fetch failed:", err);
-      showMessage("Ticket not found or invalid", "error");
-      setValidatedTicket(null);
-    }
-
-    setInput("");
-  };
-
-  const handleAddToOrder = async () => {
-    if (!input.trim()) return;
-
-    try {
-      const { data } = await axios.get(
-        `http://localhost:3000/api/tickets/ticket/${input.trim()}`
-      );
-
-      if (!data.valid) return showMessage("Ticket is invalid!", "error");
-      if (data.status !== "available")
-        return showMessage("Ticket already sold!", "error");
-
-      if (orderList.find((t) => t.id === data.id)) {
-        return showMessage("Ticket already added", "warning");
+        return;
       }
 
-      setOrderList([...orderList, data]);
+      if (data.status !== "available") {
+        showMessage("Ticket already sold", "error");
+        return;
+      }
+
+      setTicketIds([...ticketIds, id]);
       showMessage("Ticket added!", "success");
+      setInput("");
     } catch (err) {
-      console.error("Fetch failed:", err);
-      showMessage("Ticket not found or invalid", "error");
+      console.error("Error fetching ticket:", err);
+      if (err.response?.status === 404) {
+        showMessage("Ticket not found in system", "error");
+      } else {
+        showMessage("Server error while checking ticket", "error");
+      }
     }
-
-    setInput("");
   };
 
-  const handleCheckout = async () => {
-    const ticketIds = orderList.map((t) => t.id);
+  const handleIncrement = (typeId) => {
+    const current = parseInt(ticketCounts[typeId] || 0);
+    const totalAssigned = Object.values(ticketCounts).reduce((sum, v) => sum + parseInt(v || 0), 0);
+    if (totalAssigned >= ticketIds.length) {
+      showMessage("Assigned count exceeds number of added tickets", "error");
+      return;
+    }
+    setTicketCounts({ ...ticketCounts, [typeId]: current + 1 });
+  };
+
+  const handleAssign = async () => {
+    const totalAssigned = Object.values(ticketCounts).reduce((sum, v) => sum + parseInt(v || 0), 0);
+    if (totalAssigned !== ticketIds.length) {
+      showMessage("Assigned count must match number of added ticket IDs", "error");
+      return;
+    }
+
+    const assignments = [];
+    let index = 0;
+    for (const [typeId, count] of Object.entries(ticketCounts)) {
+      for (let i = 0; i < count; i++) {
+        assignments.push({
+          id: ticketIds[index],
+          ticket_type_id: parseInt(typeId)
+        });
+        index++;
+      }
+    }
+
     try {
-      await axios.put("http://localhost:3000/api/tickets/mark-sold", {
-        ids: ticketIds,
+      await axios.patch("http://localhost:3000/api/tickets/tickets/assign-types", { assignments });
+      showMessage("Tickets assigned!", "success");
+      setTicketIds([]);
+      setTicketCounts({});
+      setSelectorOpen(false);
+    } catch (e) {
+      showMessage("Assignment failed", "error");
+    }
+  };
+
+  const handleSell = () => {
+    setCheckoutOpen(true);
+  };
+
+  useEffect(() => {
+    axios.get("http://localhost:3000/api/tickets/ticket-types?archived=false")
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setTypes(res.data);
+        } else {
+          showMessage("Invalid ticket types data", "error");
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching ticket types:", err);
+        showMessage("Failed to fetch ticket types", "error");
       });
-      setOrderList([]);
-      showMessage("Order checked out!", "success");
-    } catch {
-      showMessage("Checkout failed", "error");
-    }
-  };
-
-  const handleInputKey = (e) => {
-    if (e.key === "Enter") {
-      mode === "validate" ? handleValidate() : handleAddToOrder();
-    }
-  };
-
-  const removeFromOrder = (id) => {
-    setOrderList(orderList.filter((t) => t.id !== id));
-  };
-
-  const renderTicketInfo = (ticket) => (
-    <Box>
-      <Typography variant="subtitle1">Ticket ID: {ticket.id}</Typography>
-
-      <Typography variant="subtitle1">
-        Category: {ticket.category || "-"} | Subcategory:{" "}
-        {ticket.subcategory || "-"}
-      </Typography>
-
-      <Typography variant="subtitle1">
-        Status:{" "}
-        {ticket.status === "sold" ? (
-          <span style={{ color: "green", fontWeight: 600 }}>Sold</span>
-        ) : (
-          ticket.status
-        )}
-      </Typography>
-
-      {!ticket.valid && (
-        <Typography variant="subtitle1" sx={{ color: "red", fontWeight: 600 }}>
-          Invalid Ticket
-        </Typography>
-      )}
-
-      <Typography variant="subtitle1">
-        Created At: {new Date(ticket.created_at).toLocaleString()}
-      </Typography>
-
-      {ticket.sold_at && (
-        <Typography variant="subtitle1">
-          Sold At: {new Date(ticket.sold_at).toLocaleString()}
-        </Typography>
-      )}
-
-      {ticket.sold_price && (
-        <Typography variant="subtitle1">
-          Sold Price: ${ticket.sold_price}
-        </Typography>
-      )}
-    </Box>
-  );
+  }, []);
 
   return (
     <Box p={3}>
-      <Typography variant="h4" mb={2}>
-        Scan Tickets
-      </Typography>
+      <Typography variant="h4" mb={2}>Manage Tickets</Typography>
 
       <ToggleButtonGroup
         value={mode}
         exclusive
-        onChange={(e, newMode) => newMode && setMode(newMode)}
+        onChange={(e, val) => val && setMode(val)}
         sx={{ mb: 2 }}
       >
-        <ToggleButton value="validate">Validate Only</ToggleButton>
-        <ToggleButton value="order">Build Order</ToggleButton>
+        <ToggleButton value="assign">Assign Ticket Types</ToggleButton>
+        <ToggleButton value="sell">Sell Tickets</ToggleButton>
       </ToggleButtonGroup>
 
       <TextField
-        label="Scan or Enter Ticket ID"
+        label="Enter Ticket ID"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleInputKey}
+        onKeyDown={(e) => e.key === "Enter" && handleAddTicketId()}
         fullWidth
         autoFocus
-        inputRef={(input) => input && input.focus()}
         sx={{ mb: 2 }}
       />
 
-      {mode === "validate" && validatedTicket && (
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Ticket Info
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          {renderTicketInfo(validatedTicket)}
-        </Paper>
-      )}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6">Ticket IDs: {ticketIds.length}</Typography>
+        <List>
+          {ticketIds.map((id) => (
+            <ListItem key={id} secondaryAction={
+              <IconButton onClick={() => setTicketIds(ticketIds.filter((tid) => tid !== id))}>
+                <DeleteIcon />
+              </IconButton>
+            }>
+              <ListItemText primary={`Ticket ID: ${id}`} />
+            </ListItem>
+          ))}
+        </List>
 
-      {mode === "order" && (
-        <Paper sx={{ p: 2, mb: 2, maxHeight: "400px", overflowY: "auto" }}>
-          <Typography variant="h6">
-            Tickets in Order: {orderList.length}
-          </Typography>
-          <List>
-            {orderList.map((t) => (
-              <ListItem
-                key={t.id}
-                secondaryAction={
-                  <IconButton onClick={() => removeFromOrder(t.id)} edge="end">
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemText
-                  primary={`Ticket #${t.id} - ${t.category || "Unknown"} / ${
-                    t.subcategory || "Unknown"
-                  }`}
-                />
-              </ListItem>
-            ))}
-          </List>
-          {orderList.length > 0 && (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleCheckout}
-            >
-              Checkout Order
-            </Button>
-          )}
-        </Paper>
+        {ticketIds.length > 0 && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={mode === "assign" ? () => setSelectorOpen(true) : handleSell}
+          >
+            {mode === "assign" ? "Assign Ticket Types" : "Checkout"}
+          </Button>
+        )}
+      </Paper>
+
+      {/* Assign Dialog */}
+      <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Increment Ticket Counts by Category</DialogTitle>
+        <Box p={3}>
+          {types.map((type) => (
+            <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography>{type.category} - {type.subcategory}</Typography>
+              <Box>
+                <Button variant="outlined" onClick={() => handleIncrement(type.id)}>
+                  +
+                </Button>
+                <Typography display="inline" sx={{ mx: 2 }}>{ticketCounts[type.id] || 0}</Typography>
+              </Box>
+            </Paper>
+          ))}
+          <Button
+            variant="contained"
+            onClick={handleAssign}
+            disabled={ticketIds.length === 0}
+            sx={{ mt: 2 }}
+          >
+            Confirm Assignment
+          </Button>
+        </Box>
+      </Dialog>
+
+      {/* Sell Panel */}
+      {checkoutOpen && (
+        <CheckoutPanel
+          ticketCounts={ticketIds.reduce((acc, id) => ({ ...acc, [id]: 1 }), {})}
+          types={ticketIds.map((id) => ({ id, category: "Assigned", subcategory: "", price: 0 }))}
+          onCheckout={() => {
+            setCheckoutOpen(false);
+            setTicketIds([]);
+            showMessage("Tickets sold!", "success");
+          }}
+          onClear={() => {
+            setCheckoutOpen(false);
+            showMessage("Checkout canceled", "info");
+          }}
+        />
       )}
 
       <Snackbar
@@ -227,10 +221,7 @@ const AccountantScan = () => {
         autoHideDuration={3000}
         onClose={() => setMessage({ ...message, open: false })}
       >
-        <Alert
-          severity={message.type}
-          onClose={() => setMessage({ ...message, open: false })}
-        >
+        <Alert severity={message.type} onClose={() => setMessage({ ...message, open: false })}>
           {message.text}
         </Alert>
       </Snackbar>

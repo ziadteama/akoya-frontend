@@ -12,7 +12,7 @@ const CashierDashboard = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/tickets/ticket-types?archived=false")
+      fetch("http://localhost:3000/api/tickets/ticket-types?archived=false")
       .then((res) => res.json())
       .then((data) => setTypes(data))
       .catch((err) => console.error("Failed to fetch ticket types:", err));

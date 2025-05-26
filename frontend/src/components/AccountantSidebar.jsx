@@ -12,7 +12,8 @@ import {
   Category,
   Download,
   LunchDining,
-  PointOfSale
+  PointOfSale,
+  PersonAdd
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 
@@ -25,6 +26,7 @@ const AccountantSidebar = ({ excludeRoutes = [], includeRoutes = [], basePath = 
     { text: "Scan Tickets", icon: <QrCodeScanner />, path: `${basePath}/accountant-scan`, id: "scan" },
     { text: "Manage Categories", icon: <Category />, path: `${basePath}/accountant-categories`, id: "categories" },
     { text: "Manage Meals", icon: <LunchDining />, path: `${basePath}/accountant-meals`, id: "meals" },
+    { text: "Register User", icon: <PersonAdd />, path: `${basePath}/register-user`, id: "register" },
   ];
 
   // Extra menu items that can be used in other dashboards like cashier

@@ -12,6 +12,7 @@ import AccountantReports from "./components/AccountantReports";
 import AccountantScan from "./components/AccountantScan";
 import AccountantCategories from "./components/AccountantCategories";
 import AccountantMeals from "./components/AccountantMeals";
+import UserRegistration from "./components/UserRegistration";
 import "./App.css";
 
 function App() {
@@ -20,7 +21,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/cashier" element={<CashierDashboard />} />
 
         {/* Accountant Dashboard with Nested Routes */}
         <Route path="/accountant" element={<AccountantDashboard />}>
@@ -28,14 +28,15 @@ function App() {
           <Route path="accountant-scan" element={<AccountantScan />} />
           <Route path="accountant-categories" element={<AccountantCategories />} />
           <Route path="accountant-meals" element={<AccountantMeals/>} />
+          <Route path="register-user" element={<UserRegistration />} />
         </Route>
 
+        {/* Cashier Dashboard with Nested Routes */}
         <Route path="/cashier" element={<CashierDashboard />}>
-  <Route path="scan" element={<AccountantScan />} />
-  <Route path="categories" element={<AccountantCategories />} />
-  <Route path="meals" element={<AccountantMeals />} />
-</Route>
-
+          <Route path="scan" element={<AccountantScan />} />
+          <Route path="categories" element={<AccountantCategories />} />
+          <Route path="meals" element={<AccountantMeals />} />
+        </Route>
 
         {/* Redirect unknown routes to login */}
         <Route path="*" element={<Navigate to="/" />} />

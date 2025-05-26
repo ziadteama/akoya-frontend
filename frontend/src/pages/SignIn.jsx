@@ -1,55 +1,142 @@
-import {useState}  from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  Alert,
+  InputAdornment,
+  IconButton,
+  CircularProgress
+} from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import WavesIcon from "@mui/icons-material/Waves";
 
-const Login = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+const SignIn = () => {
+  // State management
+  const [formData, setFormData] = useState({
+    username: "",
+    password: ""
+  });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [serverStatus, setServerStatus] = useState(true); // Assume server is up initially
+  
   const navigate = useNavigate();
 
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear errors when user starts typing again
+    if (error) setError("");
+  };
 
+  // Toggle password visibility
+  const handleTogglePassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  // Form submission
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!formData.username.trim() || !formData.password) {
+      setError("Username and password are required");
+      return;
+    }
+    
     setError("");
+    setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/tickets/login",
-        {
-          username,
-          password,
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
+      const response = await fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
+        signal: controller.signal,
+        // These options can help with CORS issues
+        credentials: "include",
+        mode: "cors"
+      });
+      
+      // Clear the timeout
+      clearTimeout(timeoutId);
+      // Server is responding if we got here
+      setServerStatus(true);
+
+      // Handle HTTP error responses
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Invalid username or password");
+        } else if (response.status === 500) {
+          throw new Error("Server error. Please try again later");
+        } else {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Error: ${response.status}`);
         }
-      );
+      }
 
-      console.log("✅ API Response:", response.data);
+      const data = await response.json();
 
-      if (response.data && response.data.role) {
-        localStorage.setItem("userRole", response.data.role);
-        localStorage.setItem("userName", response.data.name);
-        localStorage.setItem("userId", response.data.id);
-        redirectToDashboard(response.data.role);
+      // Store user data in localStorage
+      if (data && data.role) {
+        localStorage.setItem("userRole", data.role);
+        localStorage.setItem("userName", data.name);
+        localStorage.setItem("userId", data.id);
+        
+        // Store the authentication token if it exists
+        if (data.token) {
+          localStorage.setItem("authToken", data.token);
+        }
+        
+        redirectToDashboard(data.role);
       } else {
-        setError(response.data.message || "Invalid credentials");
+        setError(data.message || "Invalid credentials");
       }
     } catch (error) {
-      console.error("❌ API Error:", error.response?.data || error.message);
-      setError(
-        error.response?.data?.message || "Login failed. Please try again."
-      );
+      console.error("Login error:", error);
+      
+      // Provide more specific error messages based on the error type
+      if (error.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+        setServerStatus(false);
+      } else if (error.name === "TypeError" && error.message.includes("Failed to fetch")) {
+        setError("Cannot connect to server. Please ensure the server is running.");
+        setServerStatus(false);
+      } else {
+        setError(error.message || "Login failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Navigation based on role
   const redirectToDashboard = (role) => {
     switch (role) {
       case "admin":
-        navigate("/admin");
+      case "accountant":
+        navigate("/accountant");
         break;
       case "cashier":
         navigate("/cashier");
-        break;
-      case "accountant":
-        navigate("/accountant");
         break;
       default:
         setError("Unauthorized role");
@@ -57,28 +144,237 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <h2>Akoya Water Park</h2>
-        {error && <p>{error}</p>}
-        <form onSubmit={handleLogin}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+    <Box
+      sx={{
+        height: "100vh",
+        width: "100vw",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #005884 0%, #007EA7 50%, #00B4D8 100%)",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Water-themed decorative elements */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "100%",
+          opacity: 0.1,
+          backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.3) 2px, transparent 3px)`,
+          backgroundSize: "50px 50px",
+        }}
+      />
+      
+      {/* Wave decorations */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: -10,
+          left: 0,
+          right: 0,
+          height: "120px",
+          opacity: 0.3,
+          background: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' opacity='.25' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' opacity='.5' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%23FFFFFF'%3E%3C/path%3E%3C/svg%3E\")",
+          backgroundSize: "cover",
+          transform: "rotate(180deg)",
+        }}
+      />
+      
+      {/* Second wave decoration */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: -5,
+          left: 0,
+          right: 0,
+          height: "100px",
+          opacity: 0.4,
+          background: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z' fill='%23FFFFFF'%3E%3C/path%3E%3C/svg%3E\")",
+          backgroundSize: "cover",
+          transform: "rotate(180deg)",
+        }}
+      />
+
+      <Paper 
+        elevation={12}
+        sx={{
+          p: 4,
+          width: "100%",
+          maxWidth: "450px",
+          borderRadius: 3,
+          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+          zIndex: 10,
+          mx: 3,
+          border: "1px solid rgba(255, 255, 255, 0.5)"
+        }}
+      >
+        <Box 
+          sx={{ 
+            display: "flex", 
+            flexDirection: "column", 
+            alignItems: "center",
+            mb: 3
+          }}
+        >
+          <Box 
+            sx={{ 
+              backgroundColor: "#00AEEF", 
+              borderRadius: "50%", 
+              p: 1.5,
+              mb: 2,
+              display: "flex",
+              boxShadow: "0 4px 10px rgba(0, 174, 239, 0.3)"
+            }}
+          >
+            <WavesIcon sx={{ fontSize: 40, color: "white" }} />
+          </Box>
+          <Typography 
+            component="h1" 
+            variant="h4" 
+            sx={{ 
+              color: "#005884",
+              fontWeight: "bold",
+              textAlign: "center"
+            }}
+          >
+            Akoya Water Park
+          </Typography>
+          <Typography 
+            variant="subtitle1"
+            sx={{ 
+              mt: 1, 
+              color: "#444",
+              fontWeight: "medium"
+            }}
+          >
+            Sign in to management system
+          </Typography>
+        </Box>
+        
+        {!serverStatus && (
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              mb: 2,
+              borderRadius: 2,
+              fontSize: "0.9rem"
+            }}
+          >
+            Server connection issue. Please ensure the server is running.
+          </Alert>
+        )}
+        
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 2,
+              borderRadius: 2,
+              fontSize: "0.9rem"
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+        
+        <Box component="form" onSubmit={handleLogin} noValidate>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="username"
+            label="Username"
+            name="username"
+            autoComplete="username"
+            autoFocus
+            value={formData.username}
+            onChange={handleChange}
+            disabled={loading}
+            sx={{ 
+              mb: 2,
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#00AEEF"
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#00AEEF"
+                }
+              }
+            }}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            id="password"
+            autoComplete="current-password"
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
+            sx={{ 
+              mb: 3,
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#00AEEF"
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#00AEEF"
+                }
+              }
+            }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleTogglePassword}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
-          <button type="submit">Login</button>
-        </form>
-      </div>
-    </div>
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            disabled={loading}
+            sx={{ 
+              py: 1.5, 
+              backgroundColor: "#00AEEF",
+              fontWeight: "bold",
+              fontSize: "1rem",
+              boxShadow: "0 4px 10px rgba(0, 174, 239, 0.3)",
+              "&:hover": {
+                backgroundColor: "#0099CC",
+              },
+              "&:disabled": {
+                backgroundColor: "#B3E0F2",
+              }
+            }}
+          >
+            {loading ? <CircularProgress size={24} /> : "Sign In"}
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 
-export default Login;
+export default SignIn;

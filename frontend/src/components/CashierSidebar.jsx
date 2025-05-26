@@ -7,47 +7,22 @@ import {
   ListItemText,
 } from "@mui/material";
 import {
-  Event,
   QrCodeScanner,
   Category,
-  Download,
   LunchDining,
-  PointOfSale
+  PointOfSale,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 
-const AccountantSidebar = ({ excludeRoutes = [], includeRoutes = [], basePath = "/accountant" }) => {
+const CashierSidebar = () => {
   const location = useLocation();
 
-  // Core accountant menu items - corrected the IDs to match what's expected
-  const allMenuItems = [
-    { text: "Reports", icon: <Event />, path: `${basePath}/accountant-reports`, id: "reports" },
-    { text: "Scan Tickets", icon: <QrCodeScanner />, path: `${basePath}/accountant-scan`, id: "scan" },
-    { text: "Manage Categories", icon: <Category />, path: `${basePath}/accountant-categories`, id: "categories" },
-    { text: "Manage Meals", icon: <LunchDining />, path: `${basePath}/accountant-meals`, id: "meals" },
-  ];
-
-  // Extra menu items that can be used in other dashboards like cashier
-  const additionalRoutes = [
+  const menuItems = [
     { text: "Sell Tickets", icon: <PointOfSale />, path: `/cashier`, id: "sell" },
-    { text: "Sales History", icon: <Download />, path: `/cashier/history`, id: "history" },
+    { text: "Scan Tickets", icon: <QrCodeScanner />, path: `/cashier/scan`, id: "scan" },
+    { text: "Manage Categories", icon: <Category />, path: `/cashier/categories`, id: "categories" },
+    { text: "Manage Meals", icon: <LunchDining />, path: `/cashier/meals`, id: "meals" },
   ];
-
-  // Start with base menu items
-  let menuItems = [...allMenuItems];
-
-  // Exclude specific items - with console log for debugging
-  console.log("Excluding routes:", excludeRoutes);
-  if (excludeRoutes && excludeRoutes.length > 0) {
-    menuItems = menuItems.filter(item => !excludeRoutes.includes(item.id));
-    console.log("After exclusion:", menuItems.map(item => item.id));
-  }
-
-  // Include additional routes (e.g. for cashier)
-  if (includeRoutes && includeRoutes.length > 0) {
-    const includedItems = additionalRoutes.filter(item => includeRoutes.includes(item.id));
-    menuItems = [...menuItems, ...includedItems];
-  }
 
   return (
     <Drawer
@@ -95,4 +70,4 @@ const AccountantSidebar = ({ excludeRoutes = [], includeRoutes = [], basePath = 
   );
 };
 
-export default AccountantSidebar;
+export default CashierSidebar;

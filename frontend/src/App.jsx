@@ -30,6 +30,13 @@ function App() {
           <Route path="accountant-meals" element={<AccountantMeals/>} />
         </Route>
 
+        <Route path="/cashier" element={<CashierDashboard />}>
+  <Route path="scan" element={<AccountantScan />} />
+  <Route path="categories" element={<AccountantCategories />} />
+  <Route path="meals" element={<AccountantMeals />} />
+</Route>
+
+
         {/* Redirect unknown routes to login */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

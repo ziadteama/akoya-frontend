@@ -18,6 +18,7 @@ import {
 
 import TopBar from "../components/TopBar";
 import UsersManagement from '../components/UsersManagement';
+import OrdersManagement from '../components/OrdersManagement';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -831,7 +832,8 @@ const AdminDashboard = () => {
 
           {/* Other pages */}
           {activePage === 'users' && <UsersManagement />}
-          {activePage !== 'dashboard' && activePage !== 'users' && (
+          {activePage === 'orders' && <OrdersManagement />}
+          {activePage !== 'dashboard' && activePage !== 'users' && activePage !== 'orders' && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
                 {activePage.charAt(0).toUpperCase() + activePage.slice(1)}

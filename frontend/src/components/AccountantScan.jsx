@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box, Typography, TextField, Button, Paper, Snackbar, Alert,
   ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, IconButton, Dialog, DialogTitle
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
@@ -13,6 +14,8 @@ const beep = () => window.navigator.vibrate?.(150);
 const AccountantScan = () => {
   const [mode, setMode] = useState("assign");
   const [input, setInput] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [message, setMessage] = useState({ open: false, text: "", type: "info" });
   const [ticketIds, setTicketIds] = useState([]);
   const [ticketDetails, setTicketDetails] = useState([]);
@@ -20,10 +23,51 @@ const AccountantScan = () => {
   const [ticketCounts, setTicketCounts] = useState({});
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const listEndRef = useRef(null);
 
   const showMessage = (text, type = "info") => {
     setMessage({ open: true, text, type });
     if (type === "error") beep();
+  };
+
+  const handleRangeAdd = async () => {
+    const start = parseInt(from);
+    const end = parseInt(to);
+    if (isNaN(start) || isNaN(end) || start > end) {
+      showMessage("Invalid range", "error");
+      return;
+    }
+
+    const newIds = [];
+    for (let id = start; id <= end; id++) {
+      if (!ticketIds.includes(id)) {
+        newIds.push(id);
+      }
+    }
+
+    if (newIds.length === 0) {
+      showMessage("No new IDs in this range", "warning");
+      return;
+    }
+
+    try {
+      const responses = await Promise.all(
+        newIds.map(id => axios.get(`http://localhost:3000/api/tickets/ticket/${id}`))
+      );
+      const validDetails = responses.map(r => r.data).filter(data => {
+        if (!data.valid) return false;
+        if ((mode === "assign" && (data.status !== "available" || data.ticket_type_id !== null)) ||
+            (mode === "sell" && data.status !== "available")) return false;
+        return true;
+      });
+
+      setTicketIds(prev => [...prev, ...validDetails.map(t => t.id)]);
+      setTicketDetails(prev => [...prev, ...validDetails]);
+      showMessage("Tickets added!", "success");
+      setTimeout(() => listEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (e) {
+      showMessage("One or more ticket fetches failed", "error");
+    }
   };
 
   const handleAddTicketId = async () => {
@@ -37,34 +81,33 @@ const AccountantScan = () => {
 
     try {
       const { data } = await axios.get(`http://localhost:3000/api/tickets/ticket/${id}`);
-
-      if (!data || typeof data !== 'object') {
-        showMessage("Unexpected response format", "error");
-        return;
-      }
-
       if (!data.valid) {
         showMessage("Ticket is invalid", "error");
         return;
       }
 
       if ((mode === "assign" && (data.status !== "available" || data.ticket_type_id !== null)) ||
-        (mode === "sell" && data.status !== "available")) {
+          (mode === "sell" && data.status !== "available")) {
         showMessage("Ticket is not available for this operation", "error");
         return;
       }
 
-      setTicketIds([...ticketIds, id]);
-      setTicketDetails([...ticketDetails, data]);
+      setTicketIds(prev => [...prev, id]);
+      setTicketDetails(prev => [...prev, data]);
       showMessage("Ticket added!", "success");
       setInput("");
     } catch (err) {
-      console.error("Error fetching ticket:", err);
-      if (err.response?.status === 404) {
-        showMessage("Ticket not found in system", "error");
-      } else {
-        showMessage("Server error while checking ticket", "error");
-      }
+      showMessage("Ticket not found", "error");
+    }
+  };
+
+  const handleManualCount = (typeId, value) => {
+    const parsed = parseInt(value);
+    const total = Object.entries(ticketCounts).reduce((sum, [id, count]) => id !== String(typeId) ? sum + Number(count) : sum, 0);
+    if (!isNaN(parsed) && parsed >= 0 && total + parsed <= ticketIds.length) {
+      setTicketCounts({ ...ticketCounts, [typeId]: parsed });
+    } else {
+      showMessage("Assigned total exceeds available tickets", "error");
     }
   };
 
@@ -89,10 +132,7 @@ const AccountantScan = () => {
     let index = 0;
     for (const [typeId, count] of Object.entries(ticketCounts)) {
       for (let i = 0; i < count; i++) {
-        assignments.push({
-          id: ticketIds[index],
-          ticket_type_id: parseInt(typeId)
-        });
+        assignments.push({ id: ticketIds[index], ticket_type_id: parseInt(typeId) });
         index++;
       }
     }
@@ -109,23 +149,12 @@ const AccountantScan = () => {
     }
   };
 
-  const handleSell = () => {
-    setCheckoutOpen(true);
-  };
+  const handleSell = () => setCheckoutOpen(true);
 
   useEffect(() => {
     axios.get("http://localhost:3000/api/tickets/ticket-types?archived=false")
-      .then((res) => {
-        if (Array.isArray(res.data)) {
-          setTypes(res.data);
-        } else {
-          showMessage("Invalid ticket types data", "error");
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching ticket types:", err);
-        showMessage("Failed to fetch ticket types", "error");
-      });
+      .then((res) => Array.isArray(res.data) && setTypes(res.data))
+      .catch(() => showMessage("Failed to fetch ticket types", "error"));
   }, []);
 
   const groupedTypes = types.reduce((acc, type) => {
@@ -154,9 +183,16 @@ const AccountantScan = () => {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAddTicketId()}
         fullWidth
-        autoFocus
-        sx={{ mb: 2 }}
+        sx={{ mb: 1 }}
       />
+
+      {mode === "assign" && (
+        <Box display="flex" gap={2} mb={2}>
+          <TextField label="From ID" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
+          <TextField label="To ID" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
+          <Button variant="outlined" onClick={handleRangeAdd}>Add Range</Button>
+        </Box>
+      )}
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h6">Ticket IDs: {ticketIds.length}</Typography>
@@ -164,11 +200,12 @@ const AccountantScan = () => {
           {ticketDetails.map((ticket) => (
             <ListItem key={ticket.id}>
               <ListItemText
-                primary={`Ticket ID: ${ticket.id} | ${ticket.category} / ${ticket.subcategory}`}
+                primary={`Ticket ID: ${ticket.id} | ${ticket.category || 'Unassigned'} / ${ticket.subcategory || '-'}`}
                 secondary={`Created At: ${new Date(ticket.created_at).toLocaleString()}`}
               />
             </ListItem>
           ))}
+          <div ref={listEndRef}></div>
         </List>
         {ticketIds.length > 0 && (
           <Button
@@ -181,9 +218,8 @@ const AccountantScan = () => {
         )}
       </Paper>
 
-      {/* Assign Dialog */}
       <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>Increment Ticket Counts by Category</DialogTitle>
+        <DialogTitle>Assign Ticket Counts by Category</DialogTitle>
         <Box p={3}>
           {Object.entries(groupedTypes).map(([category, subtypes]) => (
             <Box key={category} sx={{ mb: 2 }}>
@@ -191,11 +227,15 @@ const AccountantScan = () => {
               {subtypes.map((type) => (
                 <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography>{type.subcategory}</Typography>
-                  <Box>
-                    <Button variant="outlined" onClick={() => handleIncrement(type.id)}>
-                      +
-                    </Button>
-                    <Typography display="inline" sx={{ mx: 2 }}>{ticketCounts[type.id] || 0}</Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Button variant="outlined" onClick={() => handleIncrement(type.id)}>+</Button>
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={ticketCounts[type.id] || 0}
+                      onChange={(e) => handleManualCount(type.id, e.target.value)}
+                      sx={{ width: 60 }}
+                    />
                   </Box>
                 </Paper>
               ))}
@@ -212,7 +252,6 @@ const AccountantScan = () => {
         </Box>
       </Dialog>
 
-      {/* Sell Panel */}
       {checkoutOpen && (
         <CheckoutPanel
           ticketCounts={ticketDetails.reduce((acc, t) => {

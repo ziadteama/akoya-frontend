@@ -193,7 +193,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Process the order data for KPIs and charts
+  // Update processOrderData to exclude discounts from total revenue
   const processOrderData = (data) => {
     if (!data || data.length === 0) {
       setKpiData({
@@ -205,8 +205,14 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Calculate total revenue
-    const totalRevenue = data.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0);
+    // Calculate total revenue (excluding discounts)
+    let totalRevenue = 0;
+    
+    data.forEach(order => {
+      // Just use the order amount which already has discounts removed
+      const orderAmount = parseFloat(order.total_amount || 0);
+      totalRevenue += orderAmount;
+    });
     
     // Count tickets
     let ticketsCount = 0;
@@ -228,7 +234,7 @@ const AdminDashboard = () => {
       }
     });
     
-    // Calculate average order value
+    // Calculate average order value (excluding discounts)
     const avgOrderValue = data.length ? totalRevenue / data.length : 0;
     
     setKpiData({
@@ -335,7 +341,10 @@ const AdminDashboard = () => {
       if (!revenueByDate[date]) {
         revenueByDate[date] = 0;
       }
-      revenueByDate[date] += parseFloat(order.total_amount || 0);
+      
+      // Just use the order amount with discounts already removed
+      const orderAmount = parseFloat(order.total_amount || 0);
+      revenueByDate[date] += orderAmount;
     });
     
     const sortedDates = Object.keys(revenueByDate).sort((a, b) => new Date(a) - new Date(b));
@@ -791,36 +800,41 @@ const AdminDashboard = () => {
                         </Box>
                       ) : (
                         <Box>
-                          {orders.slice(0, 5).map((order) => (
-                            <Box 
-                              key={order.order_id}
-                              sx={{ 
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                p: 1.5,
-                                borderBottom: '1px solid #f0f0f0',
-                                '&:last-child': { borderBottom: 'none' }
-                              }}
-                            >
-                              <Box>
-                                <Typography variant="subtitle2" fontWeight="bold">
-                                  Order #{order.order_id}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {new Date(order.created_at).toLocaleString()}
-                                </Typography>
+                          {orders.slice(0, 5).map((order) => {
+                            // Just use the order amount which already has discounts removed
+                            const orderTotal = parseFloat(order.total_amount || 0);
+                            
+                            return (
+                              <Box 
+                                key={order.order_id}
+                                sx={{ 
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  p: 1.5,
+                                  borderBottom: '1px solid #f0f0f0',
+                                  '&:last-child': { borderBottom: 'none' }
+                                }}
+                              >
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight="bold">
+                                    Order #{order.order_id}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {new Date(order.created_at).toLocaleString()}
+                                  </Typography>
+                                </Box>
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight="bold">
+                                    ${orderTotal.toFixed(2)}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" align="right">
+                                    {order.user_name}
+                                  </Typography>
+                                </Box>
                               </Box>
-                              <Box>
-                                <Typography variant="subtitle2" fontWeight="bold">
-                                  ${Number(order.total_amount).toFixed(2)}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" align="right">
-                                  {order.user_name}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          ))}
+                            );
+                          })}
                         </Box>
                       )}
                     </Paper>

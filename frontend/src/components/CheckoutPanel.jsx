@@ -57,9 +57,9 @@ const finalTotal = grossTotal - discountAmount;
   const hasItems = selected.length > 0 || Object.values(mealCounts).some(qty => qty > 0);
 
   const enteredTotal = useMemo(() => {
-  return selectedMethods.reduce((sum, method) => {
-    return method !== "discount" ? sum + getAmount(method) : sum;
-  }, 0);
+  return selectedMethods
+    .filter(method => method !== "discount")
+    .reduce((sum, method) => sum + getAmount(method), 0);
 }, [selectedMethods, amounts]);
 
   const remaining = finalTotal - enteredTotal;

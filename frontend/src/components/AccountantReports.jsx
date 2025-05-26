@@ -60,18 +60,7 @@ const AccountantReports = () => {
         // Calculate summary on frontend
         const reportItems = Array.isArray(data) ? data : [];
         setReportData(reportItems);
-        
-        // Calculate totals
-        const totalRevenue = reportItems.reduce((sum, row) => 
-          sum + (Number(row.total_amount) || 0), 0);
-        
-        const totalTickets = reportItems.reduce((sum, row) => 
-          sum + ((row.tickets && row.tickets.length) || 0), 0);
-          
-        setSummary({
-          totalTickets,
-          totalRevenue
-        });
+        setSummary(calculateSummary(reportItems));
       }
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -169,6 +158,7 @@ const AccountantReports = () => {
     csvContent += `\r\n\r\nSUMMARY REPORT\r\n`;
     csvContent += `Total Orders,${reportData.length}\r\n`;
     csvContent += `Total Revenue (EGP),${summary.totalRevenue.toFixed(2)}\r\n`;
+    csvContent += `Total Discounts (EGP),${(summary.totalDiscounts || 0).toFixed(2)}\r\n`;
     csvContent += `Total Tickets,${summary.totalTickets}\r\n`;
     
     // Get total tickets by category
@@ -275,6 +265,34 @@ const AccountantReports = () => {
         setFromDate(newVal);
       }
     }
+  };
+
+  // Modify the calculation of totals to properly handle discounts
+  const calculateSummary = (reportItems) => {
+    // Calculate totals excluding discount payments
+    const totalRevenue = reportItems.reduce((sum, row) => 
+      sum + (Number(row.total_amount) || 0), 0);
+    
+    const totalTickets = reportItems.reduce((sum, row) => 
+      sum + ((row.tickets && row.tickets.length) || 0), 0);
+    
+    // Calculate total discounts applied (for reporting)
+    const totalDiscounts = reportItems.reduce((sum, row) => {
+      if (row.payments && Array.isArray(row.payments)) {
+        const discounts = row.payments
+          .filter(p => p.method === 'discount')
+          .reduce((subSum, p) => subSum + Number(p.amount || 0), 0);
+        return sum + discounts;
+      }
+      return sum;
+    }, 0);
+    
+    // Return the complete summary object
+    return {
+      totalTickets,
+      totalRevenue,
+      totalDiscounts
+    };
   };
 
   return (
@@ -396,6 +414,11 @@ const AccountantReports = () => {
           <Typography variant="body1">
             <b>Total Revenue:</b> EGP {summary.totalRevenue.toFixed(2)}
           </Typography>
+          {summary.totalDiscounts > 0 && (
+            <Typography variant="body1" sx={{ color: 'error.main' }}>
+              <b>Total Discounts Applied:</b> EGP {summary.totalDiscounts.toFixed(2)}
+            </Typography>
+          )}
           <Button
             variant="contained"
             disabled={reportData.length === 0 || loading}

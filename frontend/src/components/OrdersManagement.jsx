@@ -264,18 +264,39 @@ const OrdersManagement = () => {
 
   // Open edit dialog
   const handleOpenEditDialog = (order) => {
+    // Create a deep copy of the order to avoid modifying the original
+    const orderCopy = JSON.parse(JSON.stringify(order));
+    
+    // Make sure payments are properly formatted
+    const formattedPayments = orderCopy.payments && orderCopy.payments.length > 0 
+      ? orderCopy.payments 
+      : [{ method: 'cash', amount: parseFloat(orderCopy.total_amount) || 0 }];
+    
+    // Ensure each payment has both method and amount properties
+    const validatedPayments = formattedPayments.map(payment => ({
+      method: payment.method || 'cash',
+      amount: parseFloat(payment.amount) || 0
+    }));
+    
+    console.log('Original order payments:', order.payments);
+    console.log('Formatted payments for editing:', validatedPayments);
+    
     setSelectedOrder(order);
     setEditableOrder({
-      ...order,
-      tickets: order.tickets || [],
-      meals: order.meals || [],
-      payments: order.payments || [],
+      ...orderCopy,
+      tickets: orderCopy.tickets || [],
+      meals: orderCopy.meals || [],
+      payments: validatedPayments,
       addedTickets: [],
       removedTickets: [],
       addedMeals: [],
-      removedMeals: []
+      removedMeals: [],
+      originalPayments: validatedPayments // Keep a copy of original payments for comparison
     });
     setEditDialogOpen(true);
+    
+    // Set the initial tab to the Payments tab if we're specifically editing payments
+    // setEditTab(2); // Uncomment this line if you want to default to the payments tab
   };
   
   // Close edit dialog
@@ -297,18 +318,15 @@ const OrdersManagement = () => {
       t => t.ticket_type_id === ticketType.id || t.ticket_type_id === ticketType.ticket_type_id
     );
     
+    // Create a copy of the tickets array for updating
+    const updatedTickets = [...(editableOrder.tickets || [])];
+    
     if (existingTicketIndex >= 0) {
       // Increment quantity of existing ticket
-      const updatedTickets = [...editableOrder.tickets];
       updatedTickets[existingTicketIndex] = {
         ...updatedTickets[existingTicketIndex],
         quantity: (updatedTickets[existingTicketIndex].quantity || 1) + 1
       };
-      
-      setEditableOrder({
-        ...editableOrder,
-        tickets: updatedTickets
-      });
     } else {
       // Add new ticket type
       const newTicket = {
@@ -320,11 +338,7 @@ const OrdersManagement = () => {
       };
       
       console.log('New ticket being added:', newTicket); // Debug log
-      
-      setEditableOrder(prevState => ({
-        ...prevState,
-        tickets: [...(prevState.tickets || []), newTicket]
-      }));
+      updatedTickets.push(newTicket);
     }
     
     // Add to addedTickets for tracking changes
@@ -333,13 +347,44 @@ const OrdersManagement = () => {
       quantity: 1
     };
     
+    // Calculate updated totals using the updatedTickets array
+    const ticketTotal = updatedTickets.reduce((sum, ticket) => {
+      const price = parseFloat(ticket.sold_price) || 0;
+      const quantity = ticket.quantity || 1;
+      return sum + (price * quantity);
+    }, 0);
+    
+    const mealTotal = (editableOrder.meals || []).reduce((sum, meal) => {
+      const price = parseFloat(meal.price_at_order) || 0;
+      const quantity = meal.quantity || 1;
+      return sum + (price * quantity);
+    }, 0);
+    
+    const grossTotal = parseFloat((ticketTotal + mealTotal).toFixed(2));
+    const discountAmount = (editableOrder.payments || [])
+      .filter(payment => payment.method === 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    const totalAmount = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+    // Update payment if only one exists
+    let updatedPayments = [...editableOrder.payments];
+    if (updatedPayments.length === 1) {
+      const isDiscount = updatedPayments[0].method === 'discount';
+      updatedPayments[0] = {
+        ...updatedPayments[0],
+        amount: isDiscount ? grossTotal : totalAmount
+      };
+    }
+    
+    // Update state with all changes in one go
     setEditableOrder(prevState => ({
       ...prevState,
+      tickets: updatedTickets,
+      gross_total: grossTotal,
+      total_amount: totalAmount,
+      payments: updatedPayments,
       addedTickets: [...(prevState.addedTickets || []), newAddedTicket]
     }));
-    
-    // Recalculate total after a short delay to ensure state is updated
-    setTimeout(() => recalculateOrderTotal(), 50);
   };
   
   // Handle removing a ticket from the order
@@ -363,18 +408,71 @@ const OrdersManagement = () => {
         updatedTickets.splice(ticketIndex, 1);
       }
       
-      setEditableOrder({
-        ...editableOrder,
-        tickets: updatedTickets
-      });
+      // Calculate updated totals using the updatedTickets array
+      const ticketTotal = updatedTickets.reduce((sum, ticket) => {
+        const price = parseFloat(ticket.sold_price) || 0;
+        const quantity = parseInt(ticket.quantity) || 1;
+        return sum + (price * quantity);
+      }, 0);
       
-      // Add to removedTickets for tracking changes
+      const mealTotal = (editableOrder.meals || []).reduce((sum, meal) => {
+        const price = parseFloat(meal.price_at_order) || 0;
+        const quantity = parseInt(meal.quantity) || 1;
+        return sum + (price * quantity);
+      }, 0);
+      
+      // Calculate gross total and discount
+      const grossTotal = parseFloat((ticketTotal + mealTotal).toFixed(2));
+      const discountAmount = (editableOrder.payments || [])
+        .filter(payment => payment.method === 'discount')
+        .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+      const totalAmount = parseFloat((grossTotal - discountAmount).toFixed(2));
+      
+      // Update payments
+      let updatedPayments = [...editableOrder.payments];
+      const nonDiscountPayments = updatedPayments.filter(p => p.method !== 'discount');
+      
+      if (nonDiscountPayments.length === 1) {
+        // If there's just one non-discount payment, adjust it to match the total
+        const nonDiscountIndex = updatedPayments.findIndex(p => p.method !== 'discount');
+        updatedPayments[nonDiscountIndex].amount = totalAmount;
+      } else if (nonDiscountPayments.length > 1) {
+        // If multiple non-discount payments, adjust them proportionally
+        // Same logic as in recalculateOrderTotal
+        const currentNonDiscountTotal = nonDiscountPayments.reduce(
+          (sum, p) => sum + (parseFloat(p.amount) || 0), 0
+        );
+        
+        if (currentNonDiscountTotal > 0) {
+          // Apply scaling factor
+          const scaleFactor = totalAmount / currentNonDiscountTotal;
+          let adjustedTotal = 0;
+          const nonDiscountIndices = updatedPayments
+            .map((p, i) => p.method !== 'discount' ? i : -1)
+            .filter(i => i !== -1);
+          
+          for (let i = 0; i < nonDiscountIndices.length - 1; i++) {
+            const index = nonDiscountIndices[i];
+            const scaledAmount = parseFloat((updatedPayments[index].amount * scaleFactor).toFixed(2));
+            updatedPayments[index].amount = scaledAmount;
+            adjustedTotal += scaledAmount;
+          }
+          
+          // Last payment covers remainder
+          const lastIndex = nonDiscountIndices[nonDiscountIndices.length - 1];
+          updatedPayments[lastIndex].amount = parseFloat((totalAmount - adjustedTotal).toFixed(2));
+        }
+      }
+      
+      // Update all state in one operation
       setEditableOrder(prevState => ({
         ...prevState,
+        tickets: updatedTickets,
+        gross_total: grossTotal,
+        total_amount: totalAmount,
+        payments: updatedPayments,
         removedTickets: [...(prevState.removedTickets || []), { ticket_type_id: ticketTypeId, quantity: 1 }]
       }));
-      
-      recalculateOrderTotal();
     }
   };
   
@@ -389,18 +487,14 @@ const OrdersManagement = () => {
       m => m.meal_id === meal.id || m.meal_id === meal.meal_id
     );
     
+    let updatedMeals = [...editableOrder.meals];
+    
     if (existingMealIndex >= 0) {
       // Increment quantity of existing meal
-      const updatedMeals = [...editableOrder.meals];
       updatedMeals[existingMealIndex] = {
         ...updatedMeals[existingMealIndex],
         quantity: (updatedMeals[existingMealIndex].quantity || 1) + 1
       };
-      
-      setEditableOrder({
-        ...editableOrder,
-        meals: updatedMeals
-      });
     } else {
       // Add new meal
       const newMeal = {
@@ -410,28 +504,83 @@ const OrdersManagement = () => {
         price_at_order: meal.price
       };
       
-      console.log('New meal being added:', newMeal); // Debug log
-      
-      setEditableOrder(prevState => ({
-        ...prevState,
-        meals: [...(prevState.meals || []), newMeal]
-      }));
+      console.log('New meal being added:', newMeal);
+      updatedMeals = [...updatedMeals, newMeal];
     }
     
-    // Add to addedMeals for tracking changes
+    // Create newAddedMeal for tracking changes
     const newAddedMeal = {
       meal_id: meal.id || meal.meal_id,
       quantity: 1,
       price: meal.price
     };
     
+    // Calculate totals immediately
+    const ticketTotal = (editableOrder.tickets || []).reduce((sum, ticket) => {
+      const price = parseFloat(ticket.sold_price) || 0;
+      const quantity = parseInt(ticket.quantity) || 1;
+      return sum + (price * quantity);
+    }, 0);
+    
+    const mealTotal = updatedMeals.reduce((sum, meal) => {
+      const price = parseFloat(meal.price_at_order) || 0;
+      const quantity = parseInt(meal.quantity) || 1;
+      return sum + (price * quantity);
+    }, 0);
+    
+    // Calculate gross total and discount
+    const grossTotal = parseFloat((ticketTotal + mealTotal).toFixed(2));
+    const discountAmount = (editableOrder.payments || [])
+      .filter(payment => payment.method === 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    const totalAmount = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+    // Update payments to maintain balance
+    let updatedPayments = [...editableOrder.payments];
+    const nonDiscountPayments = updatedPayments.filter(p => p.method !== 'discount');
+    
+    if (nonDiscountPayments.length === 1) {
+      // If there's just one non-discount payment, adjust it to match the total
+      const nonDiscountIndex = updatedPayments.findIndex(p => p.method !== 'discount');
+      updatedPayments[nonDiscountIndex].amount = totalAmount;
+    } else if (nonDiscountPayments.length > 1) {
+      // If multiple non-discount payments, adjust them proportionally (same logic as in recalculateOrderTotal)
+      const currentNonDiscountTotal = nonDiscountPayments.reduce(
+        (sum, p) => sum + (parseFloat(p.amount) || 0), 0
+      );
+      
+      if (currentNonDiscountTotal > 0) {
+        // Apply scaling factor
+        const scaleFactor = totalAmount / currentNonDiscountTotal;
+        let adjustedTotal = 0;
+        const nonDiscountIndices = updatedPayments
+          .map((p, i) => p.method !== 'discount' ? i : -1)
+          .filter(i => i !== -1);
+        
+        for (let i = 0; i < nonDiscountIndices.length - 1; i++) {
+          const index = nonDiscountIndices[i];
+          const scaledAmount = parseFloat((updatedPayments[index].amount * scaleFactor).toFixed(2));
+          updatedPayments[index].amount = scaledAmount;
+          adjustedTotal += scaledAmount;
+        }
+        
+        // Last payment covers remainder
+        const lastIndex = nonDiscountIndices[nonDiscountIndices.length - 1];
+        updatedPayments[lastIndex].amount = parseFloat((totalAmount - adjustedTotal).toFixed(2));
+      }
+    }
+    
+    // Update everything in one state change
     setEditableOrder(prevState => ({
       ...prevState,
+      meals: updatedMeals,
+      gross_total: grossTotal,
+      total_amount: totalAmount,
+      payments: updatedPayments,
       addedMeals: [...(prevState.addedMeals || []), newAddedMeal]
     }));
     
-    // Recalculate total after a short delay to ensure state is updated
-    setTimeout(() => recalculateOrderTotal(), 50);
+    console.log(`Updated order: Gross=${grossTotal.toFixed(2)}, Net=${totalAmount.toFixed(2)}, Meals=${updatedMeals.length}`);
   };
   
   // Handle removing a meal from the order
@@ -466,54 +615,229 @@ const OrdersManagement = () => {
         removedMeals: [...(prevState.removedMeals || []), { meal_id: mealId, quantity: 1 }]
       }));
       
+      // Recalculate total after a short delay to ensure state is updated
       recalculateOrderTotal();
     }
   };
 
-  // Handle payment method change
-  const handlePaymentMethodChange = (index, method) => {
+  // Add this helper function to format payment method names
+  const formatPaymentMethod = (method) => {
+    return method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Update the recalculateOrderTotal function to ensure it properly updates state synchronously
+  const recalculateOrderTotal = () => {
     if (!editableOrder) return;
     
-    const updatedPayments = [...editableOrder.payments];
-    updatedPayments[index] = { ...updatedPayments[index], method };
+    // Calculate ticket and meal totals with proper handling of potentially undefined values
+    const ticketTotal = Array.isArray(editableOrder.tickets) 
+      ? editableOrder.tickets.reduce((sum, ticket) => {
+          const price = parseFloat(ticket.sold_price) || 0;
+          const quantity = parseInt(ticket.quantity) || 1;
+          return sum + (price * quantity);
+        }, 0)
+      : 0;
     
-    setEditableOrder({
-      ...editableOrder,
+    const mealTotal = Array.isArray(editableOrder.meals)
+      ? editableOrder.meals.reduce((sum, meal) => {
+          const price = parseFloat(meal.price_at_order) || 0;
+          const quantity = parseInt(meal.quantity) || 1;
+          return sum + (price * quantity);
+        }, 0)
+      : 0;
+    
+    // Calculate gross total with proper rounding
+    const grossTotal = parseFloat((ticketTotal + mealTotal).toFixed(2));
+    
+    // Calculate discount amount
+    const discountAmount = Array.isArray(editableOrder.payments)
+      ? editableOrder.payments
+          .filter(payment => payment.method === 'discount')
+          .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0)
+      : 0;
+    
+    // Calculate final total
+    const totalAmount = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+    // Update payments to maintain balance
+    let updatedPayments = [...editableOrder.payments];
+    
+    // Check how many non-discount payments we have
+    const nonDiscountPayments = updatedPayments.filter(p => p.method !== 'discount');
+    
+    if (nonDiscountPayments.length === 1) {
+      // If there's just one non-discount payment, adjust it to match the total
+      const nonDiscountIndex = updatedPayments.findIndex(p => p.method !== 'discount');
+      updatedPayments[nonDiscountIndex].amount = totalAmount;
+    } else if (nonDiscountPayments.length > 1) {
+      // If there are multiple non-discount payments, scale them proportionally
+      const currentNonDiscountTotal = nonDiscountPayments.reduce(
+        (sum, p) => sum + (parseFloat(p.amount) || 0), 0
+      );
+      
+      if (currentNonDiscountTotal > 0) {
+        // Calculate a scaling factor
+        const scaleFactor = totalAmount / currentNonDiscountTotal;
+        
+        // Apply scaling factor to all non-discount payments
+        let adjustedTotal = 0;
+        const nonDiscountIndices = updatedPayments
+          .map((p, i) => p.method !== 'discount' ? i : -1)
+          .filter(i => i !== -1);
+        
+        // Scale all payments except the last one
+        for (let i = 0; i < nonDiscountIndices.length - 1; i++) {
+          const index = nonDiscountIndices[i];
+          const scaledAmount = parseFloat((updatedPayments[index].amount * scaleFactor).toFixed(2));
+          updatedPayments[index].amount = scaledAmount;
+          adjustedTotal += scaledAmount;
+        }
+        
+        // Make the last payment cover the remainder
+        const lastIndex = nonDiscountIndices[nonDiscountIndices.length - 1];
+        updatedPayments[lastIndex].amount = parseFloat((totalAmount - adjustedTotal).toFixed(2));
+      } else {
+        // If all current non-discount payments are zero, distribute evenly
+        const perPayment = parseFloat((totalAmount / nonDiscountPayments.length).toFixed(2));
+        let remaining = totalAmount;
+        
+        for (let i = 0; i < nonDiscountPayments.length; i++) {
+          const paymentIndex = updatedPayments.indexOf(nonDiscountPayments[i]);
+          
+          if (i === nonDiscountPayments.length - 1) {
+            // Last payment gets the remainder
+            updatedPayments[paymentIndex].amount = remaining;
+          } else {
+            updatedPayments[paymentIndex].amount = perPayment;
+            remaining -= perPayment;
+          }
+        }
+      }
+    } else if (nonDiscountPayments.length === 0 && totalAmount > 0) {
+      // If there are no non-discount payments, add a cash payment
+      updatedPayments.push({
+        method: 'cash',
+        amount: totalAmount
+      });
+    }
+    
+    // Update state with the new calculated values
+    setEditableOrder(prevState => ({
+      ...prevState,
+      gross_total: grossTotal,
+      total_amount: totalAmount,
       payments: updatedPayments
-    });
+    }));
+    
+    console.log(`Recalculated: Gross=${grossTotal.toFixed(2)}, Net=${totalAmount.toFixed(2)}, Discount=${discountAmount.toFixed(2)}`);
   };
   
-  // Handle payment amount change
-  const handlePaymentAmountChange = (index, amount) => {
-    if (!editableOrder) return;
+  // Update the validatePaymentTotal to handle discounts correctly
+  const validatePaymentTotal = () => {
+    if (!editableOrder || !editableOrder.payments) return false;
     
-    const updatedPayments = [...editableOrder.payments];
-    updatedPayments[index] = { ...updatedPayments[index], amount: parseFloat(amount) || 0 };
+    // Calculate non-discount payments total
+    const nonDiscountPayments = editableOrder.payments
+      .filter(payment => payment.method !== 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
     
-    setEditableOrder({
-      ...editableOrder,
-      payments: updatedPayments
-    });
+    // Calculate discount amount
+    const discountAmount = editableOrder.payments
+      .filter(payment => payment.method === 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
     
-    // Validate total payments match order total
-    validatePaymentTotal();
+    // Use editableOrder.gross_total which is now reliably calculated
+    const grossTotal = parseFloat(editableOrder.gross_total || 0);
+    
+    // Calculate net total (after discounts)
+    const netTotal = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+    // Compare with slightly higher tolerance (0.05) for floating point errors
+    const difference = Math.abs(netTotal - nonDiscountPayments);
+    const isValid = difference < 0.05; // Increased tolerance slightly
+    
+    console.log(`Payment validation: Gross=${grossTotal.toFixed(2)}, Discount=${discountAmount.toFixed(2)}, Net=${netTotal.toFixed(2)}, 
+                 Non-discount payments=${nonDiscountPayments.toFixed(2)}, Difference=${difference.toFixed(2)}, Valid=${isValid}`);
+    
+    return isValid;
   };
-  
-  // Add a new payment method
-  const handleAddPayment = () => {
-    if (!editableOrder) return;
+
+  // Remove this function completely
+  // const autoDistributeRemainingAmount = () => {
+  //   if (!editableOrder) return;
     
-    setEditableOrder({
-      ...editableOrder,
-      payments: [...(editableOrder.payments || []), { method: 'cash', amount: 0 }]
-    });
-  };
-  
-  // Remove a payment method
+  //   // Get the gross total before any discounts
+  //   const grossTotal = parseFloat(editableOrder.gross_total || 0);
+    
+  //   // Calculate current discount total
+  //   const discountAmount = editableOrder.payments
+  //     .filter(payment => payment.method === 'discount')
+  //     .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    
+  //   // Calculate the net amount that should be covered by non-discount payments
+  //   // Use toFixed(2) and parseFloat to avoid floating point issues
+  //   const netAmountNeeded = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+  //   // Get all non-discount payments
+  //   const nonDiscountPayments = editableOrder.payments.filter(p => p.method !== 'discount');
+    
+  //   const updatedPayments = [...editableOrder.payments];
+    
+  //   // Handle different cases based on number of non-discount payments
+  //   if (nonDiscountPayments.length === 0) {
+  //     // If no non-discount payments, add a cash payment for the net amount
+  //     updatedPayments.push({ method: 'cash', amount: netAmountNeeded });
+  //   } else if (nonDiscountPayments.length === 1) {
+  //     // If there's one non-discount payment, adjust it to cover the net amount
+  //     const nonDiscountIndex = updatedPayments.findIndex(p => p.method !== 'discount');
+  //     updatedPayments[nonDiscountIndex].amount = netAmountNeeded;
+  //   } else {
+  //     // If multiple non-discount payments, distribute evenly
+  //     const nonDiscountIndices = updatedPayments
+  //       .map((p, i) => p.method !== 'discount' ? i : -1)
+  //       .filter(i => i !== -1);
+      
+  //     // Distribute amount evenly with proper rounding
+  //     const perPayment = (netAmountNeeded / nonDiscountIndices.length);
+  //     let remaining = netAmountNeeded;
+      
+  //     for (let i = 0; i < nonDiscountIndices.length; i++) {
+  //       const index = nonDiscountIndices[i];
+        
+  //       if (i === nonDiscountIndices.length - 1) {
+  //         // Last payment gets exact remainder to ensure total is correct
+  //         updatedPayments[index].amount = parseFloat(remaining.toFixed(2));
+  //       } else {
+  //         // Other payments get rounded values
+  //         const amount = parseFloat(perPayment.toFixed(2));
+  //         updatedPayments[index].amount = amount;
+  //         remaining -= amount;
+  //       }
+  //     }
+  //   }
+    
+  //   // Update state with the new payments
+  //   setEditableOrder(prevState => ({
+  //     ...prevState,
+  //     payments: updatedPayments,
+  //     total_amount: (grossTotal - discountAmount).toFixed(2)
+  //   }));
+    
+  //   setNotification({
+  //     open: true,
+  //     message: 'Payment amounts auto-adjusted',
+  //     severity: 'success'
+  //   });
+  // };
+
+  // Add this function to remove payment methods
   const handleRemovePayment = (index) => {
-    if (!editableOrder) return;
+    if (!editableOrder || editableOrder.payments.length <= 1) return;
     
     const updatedPayments = [...editableOrder.payments];
+    const removedPayment = updatedPayments[index];
+    
+    // Remove the payment
     updatedPayments.splice(index, 1);
     
     setEditableOrder({
@@ -521,65 +845,117 @@ const OrdersManagement = () => {
       payments: updatedPayments
     });
     
-    // Validate total payments match order total
-    validatePaymentTotal();
-  };
-
-  // Recalculate order total based on tickets and meals
-  const recalculateOrderTotal = () => {
-    if (!editableOrder) return;
-    
-    console.log('Recalculating with tickets:', editableOrder.tickets);
-    console.log('Recalculating with meals:', editableOrder.meals);
-    
-    // Calculate ticket total
-    const ticketTotal = (editableOrder.tickets || []).reduce((sum, ticket) => {
-      const price = parseFloat(ticket.sold_price) || 0;
-      const quantity = ticket.quantity || 1;
-      return sum + (price * quantity);
-    }, 0);
-    
-    // Calculate meal total
-    const mealTotal = (editableOrder.meals || []).reduce((sum, meal) => {
-      const price = parseFloat(meal.price_at_order) || 0;
-      const quantity = meal.quantity || 1;
-      return sum + (price * quantity);
-    }, 0);
-    
-    // Update order total
-    const totalAmount = ticketTotal + mealTotal;
-    console.log(`New total: ${totalAmount} (Tickets: ${ticketTotal}, Meals: ${mealTotal})`);
-    
-    setEditableOrder(prevState => ({
-      ...prevState,
-      total_amount: totalAmount.toFixed(2)
-    }));
-    
-    // Update payment amounts to match new total if there's only one payment method
-    if (editableOrder.payments && editableOrder.payments.length === 1) {
-      const updatedPayments = [...editableOrder.payments];
-      updatedPayments[0] = {
-        ...updatedPayments[0],
-        amount: totalAmount
-      };
-      
-      setEditableOrder(prevState => ({
-        ...prevState,
-        payments: updatedPayments
-      }));
+    // If we removed a discount payment, recalculate the order total
+    if (removedPayment.method === 'discount') {
+      setTimeout(() => recalculateOrderTotal(), 50);
     }
   };
-  
-  // Validate payment totals match order total
-  const validatePaymentTotal = () => {
-    if (!editableOrder || !editableOrder.payments) return true;
+
+  // Update handlePaymentMethodChange to not call autoDistributeRemainingAmount
+  const handlePaymentMethodChange = (index, method) => {
+    if (!editableOrder) return;
     
-    const orderTotal = parseFloat(editableOrder.total_amount);
-    const paymentTotal = editableOrder.payments.reduce((sum, payment) => {
-      return sum + parseFloat(payment.amount || 0);
-    }, 0);
+    const oldMethod = editableOrder.payments[index].method;
+    const wasDiscount = oldMethod === 'discount';
+    const isDiscount = method === 'discount';
+    const updatedPayments = [...editableOrder.payments];
     
-    return Math.abs(orderTotal - paymentTotal) < 0.01; // Allow small rounding differences
+    // Update the payment method
+    updatedPayments[index] = { 
+      ...updatedPayments[index], 
+      method 
+    };
+    
+    setEditableOrder({
+      ...editableOrder,
+      payments: updatedPayments
+    });
+    
+    // If changing to/from discount, recalculate order total
+    if (wasDiscount !== isDiscount) {
+      setTimeout(() => {
+        recalculateOrderTotal();
+      }, 50);
+    }
+  };
+
+  // Update handlePaymentAmountChange to allow manual discount amount changes
+  const handlePaymentAmountChange = (index, amount) => {
+    if (!editableOrder) return;
+    
+    const parsedAmount = parseFloat(amount) || 0;
+    const updatedPayments = [...editableOrder.payments];
+    const isDiscountPayment = updatedPayments[index].method === 'discount';
+    
+    // Update the payment amount
+    updatedPayments[index] = { ...updatedPayments[index], amount: parsedAmount };
+    
+    // Calculate current values
+    const ticketTotal = Array.isArray(editableOrder.tickets) 
+      ? editableOrder.tickets.reduce((sum, ticket) => {
+          const price = parseFloat(ticket.sold_price) || 0;
+          const quantity = parseInt(ticket.quantity) || 1;
+          return sum + (price * quantity);
+        }, 0)
+      : 0;
+    
+    const mealTotal = Array.isArray(editableOrder.meals)
+      ? editableOrder.meals.reduce((sum, meal) => {
+          const price = parseFloat(meal.price_at_order) || 0;
+          const quantity = parseInt(meal.quantity) || 1;
+          return sum + (price * quantity);
+        }, 0)
+      : 0;
+    
+    const grossTotal = parseFloat((ticketTotal + mealTotal).toFixed(2));
+    
+    // Calculate total discount (may have multiple discount payments)
+    const discountAmount = updatedPayments
+      .filter(payment => payment.method === 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    
+    // Calculate net amount after discount
+    const totalAmount = parseFloat((grossTotal - discountAmount).toFixed(2));
+    
+    // Only update the edited payment without auto-adjusting others
+    // (This is the key change - we're not auto-adjusting other payments)
+    setEditableOrder(prevState => ({
+      ...prevState,
+      payments: updatedPayments,
+      gross_total: grossTotal,
+      total_amount: totalAmount
+    }));
+  };
+
+  // Handle adding a new payment method
+  const handleAddPayment = () => {
+    if (!editableOrder) return;
+    
+    const grossTotal = parseFloat(editableOrder.gross_total || 0);
+    const currentTotal = editableOrder.payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    
+    // Calculate how much is left to allocate
+    const discountAmount = editableOrder.payments
+      .filter(payment => payment.method === 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    
+    const netTotal = grossTotal - discountAmount;
+    const nonDiscountTotal = editableOrder.payments
+      .filter(payment => payment.method !== 'discount')
+      .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    
+    // Default amount is what remains to be paid
+    const newPaymentAmount = Math.max(0, netTotal - nonDiscountTotal);
+    
+    const updatedPayments = [
+      ...editableOrder.payments,
+      { method: 'cash', amount: newPaymentAmount }
+    ];
+    
+    setEditableOrder({
+      ...editableOrder,
+      payments: updatedPayments
+    });
   };
 
   // Save order changes
@@ -587,11 +963,14 @@ const OrdersManagement = () => {
     try {
       if (!editableOrder || !selectedOrder) return;
       
-      // Validate payment total matches order total
+      // Force recalculation to ensure everything is in sync
+      recalculateOrderTotal();
+      
+      // Validate payment total matches order total with a short delay to ensure state is updated
       if (!validatePaymentTotal()) {
         setNotification({
           open: true,
-          message: 'Payment total must match order total',
+          message: 'Payment total must match order total - please adjust payment amounts',
           severity: 'error'
         });
         return;
@@ -610,22 +989,62 @@ const OrdersManagement = () => {
         return;
       }
       
-      // Create the update payload
+      // Format payload with careful number parsing
+      const payments = editableOrder.payments.map(payment => ({
+        method: payment.method,
+        amount: Number(parseFloat(payment.amount).toFixed(2))
+      }));
+      
+      // Sanitize arrays before sending
+      const addedTickets = Array.isArray(editableOrder.addedTickets) 
+        ? editableOrder.addedTickets.map(ticket => ({
+            ...ticket,
+            quantity: Number(ticket.quantity)
+          }))
+        : [];
+        
+      const removedTickets = Array.isArray(editableOrder.removedTickets)
+        ? editableOrder.removedTickets.map(ticket => ({
+            ...ticket,
+            quantity: Number(ticket.quantity)
+          }))
+        : [];
+        
+      const addedMeals = Array.isArray(editableOrder.addedMeals)
+        ? editableOrder.addedMeals.map(meal => ({
+            ...meal,
+            quantity: Number(meal.quantity),
+            price: Number(parseFloat(meal.price).toFixed(2))
+          }))
+        : [];
+        
+      const removedMeals = Array.isArray(editableOrder.removedMeals)
+        ? editableOrder.removedMeals.map(meal => ({
+            ...meal,
+            quantity: Number(meal.quantity)
+          }))
+        : [];
+      
+      // Build the update payload
       const updatePayload = {
         order_id: selectedOrder.order_id,
-        addedTickets: editableOrder.addedTickets,
-        removedTickets: editableOrder.removedTickets,
-        addedMeals: editableOrder.addedMeals,
-        removedMeals: editableOrder.removedMeals,
-        payments: editableOrder.payments
+        addedTickets,
+        removedTickets,
+        addedMeals,
+        removedMeals,
+        payments
       };
       
+      console.log('Sending update payload:', updatePayload);
+      
       // Send the update request
-      await axios.put(
+      const response = await axios.put(
         'http://localhost:3000/api/orders/update',
         updatePayload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      console.log('Update response:', response.data);
       
       // Close dialog and show success message
       handleCloseEditDialog();
@@ -638,7 +1057,7 @@ const OrdersManagement = () => {
       // Refresh orders list
       fetchOrders();
     } catch (error) {
-      console.error('Error updating order:', error);
+      console.error('Error updating order:', error.response?.data || error);
       setNotification({
         open: true,
         message: error.response?.data?.message || 'Failed to update order',
@@ -882,14 +1301,14 @@ const OrdersManagement = () => {
                               {order.payments && order.payments.map((payment, index) => (
                                 <Chip 
                                   key={index}
-                                  label={`${payment.method}: ${formatCurrency(payment.amount)}`}
+                                  label={`${formatPaymentMethod(payment.method)}: ${formatCurrency(payment.amount)}`}
                                   size="small"
                                   color={
                                     payment.method === 'cash' ? 'success' :
-                                    payment.method === 'card' ? 'primary' :
-                                    payment.method === 'transfer' ? 'info' :
-                                    payment.method === 'discount' ? 'error' :  // Keep discount red
-                                    'default'  // Make postponed use default color
+                                    payment.method === 'visa' ? 'primary' :
+                                    payment.method === 'vodafone_cash' ? 'info' :
+                                    payment.method === 'discount' ? 'error' :
+                                    'default'  // For postponed
                                   }
                                   sx={{ mr: 0.5, mb: 0.5 }}
                                 />
@@ -1085,12 +1504,43 @@ const OrdersManagement = () => {
                 {/* Payments Tab */}
                 {editTab === 2 && (
                   <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6">Payment Methods</Typography>
-                      <Typography>
-                        Order Total: <strong>{formatCurrency(editableOrder.total_amount)}</strong>
-                      </Typography>
+                    {/* Order Summary Section */}
+                    <Box sx={{ 
+                      p: 2, 
+                      mb: 3, 
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      bgcolor: '#f9f9f9'
+                    }}>
+                      <Typography variant="h6" gutterBottom>Order Summary</Typography>
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography>Gross Total:</Typography>
+                        <Typography fontWeight="medium">{formatCurrency(editableOrder.gross_total || 0)}</Typography>
+                      </Box>
+                      
+                      {/* Show discount info */}
+                      {editableOrder.payments && editableOrder.payments.some(p => p.method === 'discount') && (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography color="error">Discount:</Typography>
+                          <Typography color="error" fontWeight="medium">
+                            -{formatCurrency(editableOrder.payments
+                              .filter(p => p.method === 'discount')
+                              .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+                            )}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      <Divider sx={{ my: 1 }} />
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1 }}>
+                        <Typography fontWeight="bold">Net Total:</Typography>
+                        <Typography fontWeight="bold">{formatCurrency(editableOrder.total_amount)}</Typography>
+                      </Box>
                     </Box>
+                    
+                    <Typography variant="h6" gutterBottom>Payment Methods</Typography>
                     
                     {(!editableOrder.payments || editableOrder.payments.length === 0) ? (
                       <Typography color="text.secondary">No payment methods defined</Typography>
@@ -1108,8 +1558,8 @@ const OrdersManagement = () => {
                                   size="small"
                                 >
                                   <MenuItem value="cash">Cash</MenuItem>
-                                  <MenuItem value="card">Credit Card</MenuItem>
-                                  <MenuItem value="transfer">Bank Transfer</MenuItem>
+                                  <MenuItem value="visa">Visa</MenuItem>
+                                  <MenuItem value="vodafone_cash">{formatPaymentMethod('vodafone_cash')}</MenuItem>
                                   <MenuItem value="discount" sx={{ color: 'error.main' }}>Discount</MenuItem>
                                   <MenuItem value="postponed">Postponed</MenuItem>
                                 </Select>
@@ -1140,15 +1590,6 @@ const OrdersManagement = () => {
                       </Grid>
                     )}
                     
-                    {/* Add payment button */}
-                    <Button
-                      startIcon={<AddIcon />}
-                      onClick={handleAddPayment}
-                      sx={{ mt: 2 }}
-                    >
-                      Add Payment Method
-                    </Button>
-                    
                     {/* Payment validation message */}
                     {!validatePaymentTotal() && (
                       <Box sx={{ mt: 2, p: 1, bgcolor: '#fff4e5', borderRadius: 1 }}>
@@ -1157,6 +1598,16 @@ const OrdersManagement = () => {
                         </Typography>
                       </Box>
                     )}
+                    
+                    {/* Add payment button */}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                      <Button
+                        startIcon={<AddIcon />}
+                        onClick={handleAddPayment}
+                      >
+                        Add Payment Method
+                      </Button>
+                    </Box>
                   </Box>
                 )}
               </>

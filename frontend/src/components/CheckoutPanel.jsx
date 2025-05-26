@@ -28,7 +28,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   const [customMealQty, setCustomMealQty] = useState(1);
 
   const [selectedMethods, setSelectedMethods] = useState([]);
-  const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0 });
+  const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
 
   const getAmount = (method) => amounts[method] || 0;
   const setAmount = (method, value) =>
@@ -50,21 +50,22 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     (sum, m) => sum + (mealCounts[m.id] || 0) * m.price,
     0
   );
-  const finalTotal = ticketTotal + mealTotal;
+  const grossTotal = ticketTotal + mealTotal;
+const discountAmount = getAmount("discount");
+const finalTotal = grossTotal - discountAmount;
 
   const hasItems = selected.length > 0 || Object.values(mealCounts).some(qty => qty > 0);
 
-  // Calculate the sum of all entered payment amounts
   const enteredTotal = useMemo(() => {
-    return selectedMethods.reduce((sum, method) => sum + getAmount(method), 0);
-  }, [selectedMethods, amounts]);
+  return selectedMethods.reduce((sum, method) => {
+    return method !== "discount" ? sum + getAmount(method) : sum;
+  }, 0);
+}, [selectedMethods, amounts]);
 
-  // Calculate the remaining amount
   const remaining = finalTotal - enteredTotal;
 
-  // Autofill amount if exactly one method is selected
   useEffect(() => {
-    if (selectedMethods.length === 1) {
+    if (selectedMethods.length === 1 && selectedMethods[0] !== "discount") {
       setAmounts((prev) => ({
         ...prev,
         [selectedMethods[0]]: finalTotal
@@ -72,19 +73,18 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     }
   }, [selectedMethods, finalTotal]);
 
-  // Reset amounts when methods change
   useEffect(() => {
-    // Reset amounts for methods that are no longer selected
     Object.keys(amounts).forEach(method => {
       if (!selectedMethods.includes(method)) {
         setAmount(method, 0);
       }
     });
 
-    // If multiple methods are selected, reset all to zero initially
     if (selectedMethods.length > 1) {
       selectedMethods.forEach(method => {
-        setAmount(method, 0);
+        if (method !== "discount") {
+          setAmount(method, 0);
+        }
       });
     }
   }, [selectedMethods]);
@@ -114,11 +114,10 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       return;
     }
 
-    // Create payment objects for all selected methods with non-zero amounts
     const payments = selectedMethods.map((method) => ({
       method,
       amount: parseFloat((amounts[method] || 0).toFixed(2))
-    })).filter((p) => p.amount > 0);
+    })).filter((p) => p.amount !== 0);
 
     const tickets = selected.map((t) => ({
       ticket_type_id: parseInt(t.id, 10),
@@ -159,7 +158,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       setOpen(false);
       setDescription("");
       setSelectedMethods([]);
-      setAmounts({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0 });
+      setAmounts({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
       setMealCounts({});
     } catch (error) {
       alert("Network error. Please try again.");
@@ -231,7 +230,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Typography variant="h6">Final Total: EGP {finalTotal.toFixed(2)}</Typography>
+        <Typography variant="h6">{"Final Total: EGP = " }<strong>{finalTotal.toFixed(2)}</strong></Typography>
 
         <Box mt={2} display="flex" gap={2}>
           <Button
@@ -275,44 +274,34 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
                 {method === "postponed" ? "POSTPONED" : method.replace("_", " ").toUpperCase()}
               </ToggleButton>
             ))}
+            <ToggleButton value="discount" aria-label="discount" sx={{ color: "green" }}>
+              DISCOUNT
+            </ToggleButton>
           </ToggleButtonGroup>
 
-          {selectedMethods.length === 1 ? (
-            <TextField
-              label={selectedMethods[0] === "postponed" ? "POSTPONED" : selectedMethods[0].replace("_", " ").toUpperCase()}
-              type="number"
-              value={finalTotal.toFixed(2)}
-              disabled
-              fullWidth
-              sx={{ mt: 2 }}
-            />
-          ) : (
-            <Box display="flex" flexWrap="wrap" gap={2} mt={2}>
-              {selectedMethods.map((method) => (
-                <TextField
-                  key={method}
-                  label={method === "postponed" ? "POSTPONED" : method.replace("_", " ").toUpperCase()}
-                  type="number"
-                  inputProps={{ step: "any", min: 0 }}
-                  value={getAmount(method)}
-                  onChange={(e) => {
-                    setAmount(method, e.target.value);
-                  }}
-                  sx={{ minWidth: '180px', flex: 1 }}
-                />
-              ))}
-            </Box>
-          )}
+          <Box display="flex" flexWrap="wrap" gap={2} mt={2}>
+            {selectedMethods.map((method) => (
+              <TextField
+                key={method}
+                label={method.replace("_", " ").toUpperCase()}
+                type="number"
+                inputProps={{ step: "any", min: 0 }}
+                value={getAmount(method)}
+                onChange={(e) => setAmount(method, e.target.value)}
+                sx={{ minWidth: "180px", flex: 1, ...(method === "discount" && { color: "green" }) }}
+              />
+            ))}
+          </Box>
 
-          <Typography 
-            sx={{ 
-              mt: 2, 
-              fontWeight: 'bold',
-              color: Math.abs(remaining) < 0.01 ? "green" : "red" 
+          <Typography
+            sx={{
+              mt: 2,
+              fontWeight: "bold",
+              color: Math.abs(remaining) < 0.01 ? "green" : "red"
             }}
           >
-            {Math.abs(remaining) < 0.01 ? 
-              "✅ Payment Complete" : 
+            {Math.abs(remaining) < 0.01 ?
+              "✅ Payment Complete" :
               `Remaining: EGP ${remaining.toFixed(2)}`}
           </Typography>
         </DialogContent>

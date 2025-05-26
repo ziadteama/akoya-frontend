@@ -19,6 +19,7 @@ import {
 import TopBar from "../components/TopBar";
 import UsersManagement from '../components/UsersManagement';
 import OrdersManagement from '../components/OrdersManagement';
+import AdminMeals from '../components/AdminMeals';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -406,11 +407,9 @@ const AdminDashboard = () => {
     { text: 'Dashboard', icon: <DashboardIcon />, page: 'dashboard' },
     { text: 'Users', icon: <PeopleIcon />, page: 'users' },
     { text: 'Orders', icon: <ReceiptLongIcon />, page: 'orders' },
-    { text: 'Tickets', icon: <ConfirmationNumberIcon />, page: 'tickets' },
     { text: 'Meals', icon: <RestaurantIcon />, page: 'meals' },
     { text: 'Categories', icon: <CategoryIcon />, page: 'categories' },
     { text: 'Reports', icon: <AttachMoneyIcon />, page: 'reports' },
-    { text: 'Settings', icon: <SettingsIcon />, page: 'settings' },
     { text: 'Help', icon: <HelpIcon />, page: 'help' },
   ];
 
@@ -847,7 +846,8 @@ const AdminDashboard = () => {
           {/* Other pages */}
           {activePage === 'users' && <UsersManagement />}
           {activePage === 'orders' && <OrdersManagement />}
-          {activePage !== 'dashboard' && activePage !== 'users' && activePage !== 'orders' && (
+          {activePage === 'meals' && <AdminMeals />}
+            {activePage !== 'dashboard' && activePage !== 'users' && activePage !== 'orders' && activePage !== 'meals' && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
                 {activePage.charAt(0).toUpperCase() + activePage.slice(1)}

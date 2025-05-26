@@ -23,7 +23,6 @@ const AccountantSidebar = () => {
     { text: "Scan Tickets", icon: <QrCodeScanner />, path: "/accountant/accountant-scan" },
     { text: "Manage Categories", icon: <Category />, path: "/accountant/accountant-categories" },
     { text: "Manage Meals", icon: <LunchDining />, path: "/accountant/accountant-meals" },
-    { text: "Generate Tickets", icon: <Download />, path: "/accountant/accountant-generate" },
   ];
 
   return (

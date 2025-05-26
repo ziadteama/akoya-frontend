@@ -15,8 +15,10 @@ import {
   Select,
   InputLabel,
   FormControl,
+  IconButton,
 } from "@mui/material";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   const [open, setOpen] = useState(false);
@@ -51,6 +53,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     0
   );
   const finalTotal = ticketTotal + mealTotal;
+
+  const hasItems = selected.length > 0 || Object.values(mealCounts).some(qty => qty > 0);
 
   // Autofill amount if exactly one method is selected
   useEffect(() => {
@@ -93,7 +97,13 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     setSelectedMealId("");
   };
 
-  if (selected.length === 0) return null;
+  const handleRemoveMeal = (mealId) => {
+    setMealCounts((prev) => {
+      const updated = { ...prev };
+      delete updated[mealId];
+      return updated;
+    });
+  };
 
   const handleConfirm = async () => {
     const user_id = parseInt(localStorage.getItem("userId"), 10);
@@ -160,12 +170,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     <>
       <Box mt={4} p={3} border="1px solid #00AEEF" borderRadius={2} bgcolor="#E0F7FF">
         <Typography variant="h6">🧾 Order Summary</Typography>
-        {selected.map((t) => (
-          <Typography key={t.id}>
-            {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP{" "}
-            {(ticketCounts[t.id] * t.price).toFixed(2)}
-          </Typography>
-        ))}
+
+        {selected.length > 0 &&
+          selected.map((t) => (
+            <Typography key={t.id}>
+              {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP{" "}
+              {(ticketCounts[t.id] * t.price).toFixed(2)}
+            </Typography>
+          ))}
 
         <Box mt={2}>
           <FormControl fullWidth>
@@ -199,19 +211,35 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
             {Object.entries(mealCounts).map(([id, qty]) => {
               const meal = meals.find((m) => m.id === parseInt(id));
               return (
-                <Typography key={id}>
-                  {meal?.name} × {qty} = EGP {(meal?.price * qty).toFixed(2)}
-                </Typography>
+                <Box key={id} display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>
+                    {meal?.name} × {qty} = EGP {(meal?.price * qty).toFixed(2)}
+                  </Typography>
+                  <IconButton onClick={() => handleRemoveMeal(id)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
               );
             })}
           </Box>
         </Box>
 
+        {!hasItems && (
+          <Typography sx={{ color: "gray", mt: 2 }}>
+            No tickets or meals selected yet.
+          </Typography>
+        )}
+
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6">Final Total: EGP {finalTotal.toFixed(2)}</Typography>
 
         <Box mt={2} display="flex" gap={2}>
-          <Button variant="contained" fullWidth onClick={() => setOpen(true)}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => setOpen(true)}
+            disabled={!hasItems}
+          >
             Checkout
           </Button>
           <Button variant="outlined" fullWidth color="error" onClick={onClear}>
@@ -297,7 +325,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
           <Button
             onClick={handleConfirm}
             variant="contained"
-            disabled={!postponed && Math.abs(remaining) > 0.01}
+            disabled={!hasItems || (!postponed && Math.abs(remaining) > 0.01)}
           >
             Confirm
           </Button>

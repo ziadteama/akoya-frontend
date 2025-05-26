@@ -132,6 +132,8 @@ const SignIn = () => {
   const redirectToDashboard = (role) => {
     switch (role) {
       case "admin":
+        navigate("/admin"); // Redirect admin to admin dashboard
+        break;
       case "accountant":
         navigate("/accountant");
         break;

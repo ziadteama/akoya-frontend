@@ -17,6 +17,7 @@ import {
 } from '@mui/x-charts';
 
 import TopBar from "../components/TopBar";
+import UsersManagement from '../components/UsersManagement';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -828,8 +829,9 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* Other pages placeholder (in a real app, these would be separate components) */}
-          {activePage !== 'dashboard' && (
+          {/* Other pages */}
+          {activePage === 'users' && <UsersManagement />}
+          {activePage !== 'dashboard' && activePage !== 'users' && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
                 {activePage.charAt(0).toUpperCase() + activePage.slice(1)}

@@ -21,6 +21,7 @@ import UsersManagement from '../components/UsersManagement';
 import OrdersManagement from '../components/OrdersManagement';
 import AdminMeals from '../components/AdminMeals';
 import AdminCategories from '../components/AdminCategories';
+import AdminReports from '../components/AdminReports';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -411,7 +412,6 @@ const AdminDashboard = () => {
     { text: 'Meals', icon: <RestaurantIcon />, page: 'meals' },
     { text: 'Categories', icon: <CategoryIcon />, page: 'categories' },
     { text: 'Reports', icon: <AttachMoneyIcon />, page: 'reports' },
-    { text: 'Help', icon: <HelpIcon />, page: 'help' },
   ];
 
   // Format data for revenue line chart
@@ -849,11 +849,13 @@ const AdminDashboard = () => {
           {activePage === 'orders' && <OrdersManagement />}
           {activePage === 'meals' && <AdminMeals />}
           {activePage === 'categories' && <AdminCategories />}
+          {activePage === 'reports' && <AdminReports />}
           {activePage !== 'dashboard' && 
            activePage !== 'users' && 
            activePage !== 'orders' && 
            activePage !== 'meals' && 
-           activePage !== 'categories' && (
+           activePage !== 'categories' &&
+           activePage !== 'reports' && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
                 {activePage.charAt(0).toUpperCase() + activePage.slice(1)}

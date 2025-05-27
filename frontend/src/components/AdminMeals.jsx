@@ -58,6 +58,9 @@ const AdminMeals = () => {
     severity: 'success'
   });
 
+  // Save original meal values for comparison
+  const [originalMeals, setOriginalMeals] = useState({});
+
   // Fetch meals on component mount and when showArchived changes
   useEffect(() => {
     fetchMeals();
@@ -84,6 +87,13 @@ const AdminMeals = () => {
       
       if (Array.isArray(response.data)) {
         setMeals(response.data);
+        
+        // Store original meals for comparison
+        const originals = {};
+        response.data.forEach(meal => {
+          originals[meal.id] = { ...meal };
+        });
+        setOriginalMeals(originals);
       } else {
         setError('Unexpected data format received');
         setMeals([]);
@@ -104,6 +114,22 @@ const AdminMeals = () => {
     }));
   };
 
+  // Handle starting edit mode
+  const handleStartEditing = (id) => {
+    // Store the original value before editing
+    if (!originalMeals[id]) {
+      const meal = meals.find(m => m.id === id);
+      if (meal) {
+        setOriginalMeals(prev => ({
+          ...prev,
+          [id]: { ...meal }
+        }));
+      }
+    }
+    
+    setEditing({...editing, [id]: true});
+  };
+
   // Handle edit meal price
   const handleEditPrice = (id, value) => {
     setMeals(meals.map(meal => 
@@ -111,12 +137,28 @@ const AdminMeals = () => {
     ));
   };
 
-  // Save edited meal
+  // Save edited meal - add check for actual changes
   const handleSaveMeal = async (id) => {
     try {
       const mealToUpdate = meals.find(meal => meal.id === id);
       
       if (!mealToUpdate) return;
+      
+      // Check if anything actually changed
+      const originalMeal = originalMeals[id];
+      
+      if (originalMeal && 
+          parseFloat(originalMeal.price) === parseFloat(mealToUpdate.price)) {
+        // No changes detected, just exit edit mode without API call
+        setEditing(prev => ({ ...prev, [id]: false }));
+        
+        setNotification({
+          open: true,
+          message: 'No changes detected',
+          severity: 'info'
+        });
+        return;
+      }
       
       const token = localStorage.getItem('authToken');
       
@@ -141,6 +183,12 @@ const AdminMeals = () => {
         message: 'Meal updated successfully',
         severity: 'success'
       });
+      
+      // Update our stored original after successful update
+      setOriginalMeals(prev => ({
+        ...prev,
+        [id]: { ...mealToUpdate }
+      }));
       
       fetchMeals();
     } catch (error) {
@@ -357,7 +405,7 @@ const AdminMeals = () => {
                         ) : (
                           <IconButton
                             color="info"
-                            onClick={() => setEditing({...editing, [meal.id]: true})}
+                            onClick={() => handleStartEditing(meal.id)}
                           >
                             <EditIcon />
                           </IconButton>

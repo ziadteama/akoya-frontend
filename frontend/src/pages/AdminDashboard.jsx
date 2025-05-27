@@ -20,6 +20,7 @@ import TopBar from "../components/TopBar";
 import UsersManagement from '../components/UsersManagement';
 import OrdersManagement from '../components/OrdersManagement';
 import AdminMeals from '../components/AdminMeals';
+import AdminCategories from '../components/AdminCategories';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -847,7 +848,12 @@ const AdminDashboard = () => {
           {activePage === 'users' && <UsersManagement />}
           {activePage === 'orders' && <OrdersManagement />}
           {activePage === 'meals' && <AdminMeals />}
-            {activePage !== 'dashboard' && activePage !== 'users' && activePage !== 'orders' && activePage !== 'meals' && (
+          {activePage === 'categories' && <AdminCategories />}
+          {activePage !== 'dashboard' && 
+           activePage !== 'users' && 
+           activePage !== 'orders' && 
+           activePage !== 'meals' && 
+           activePage !== 'categories' && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
                 {activePage.charAt(0).toUpperCase() + activePage.slice(1)}

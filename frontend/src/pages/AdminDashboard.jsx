@@ -121,7 +121,7 @@ const StatsCard = ({ icon, title, value, color, secondaryValue }) => {
 
 const AdminDashboard = () => {
   const theme = useTheme();
-  const [orders, setOrders] = useState([]);
+    const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [dateRange, setDateRange] = useState('week');
@@ -453,7 +453,7 @@ const AdminDashboard = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-              Akoya Water Park Admin Panel
+              Ayoo {localStorage.getItem('userName')}
             </Typography>
             <IconButton color="inherit" aria-label="logout">
               <LogoutIcon />

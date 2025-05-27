@@ -8,6 +8,7 @@ import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 // Import MUI X Charts components
 import { 
@@ -122,7 +123,8 @@ const StatsCard = ({ icon, title, value, color, secondaryValue }) => {
 
 const AdminDashboard = () => {
   const theme = useTheme();
-    const [orders, setOrders] = useState([]);
+  const navigate = useNavigate(); // Add this
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [dateRange, setDateRange] = useState('week');
@@ -426,6 +428,15 @@ const AdminDashboard = () => {
   // Format data for ticket categories bar chart
   const ticketData = getTicketCategoriesData();
 
+  // Add logout handler function
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userId");
+    navigate("/"); // Redirect to login page
+  };
+  
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={{ display: 'flex' }}>
@@ -454,9 +465,19 @@ const AdminDashboard = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-              Ayoo {localStorage.getItem('userName')}
+              Hola, {localStorage.getItem('userName')}
             </Typography>
-            <IconButton color="inherit" aria-label="logout">
+            <IconButton 
+              color="inherit" 
+              aria-label="logout"
+              onClick={handleLogout}
+              sx={{
+                '&:hover': {
+                  color: '#f44336',
+                  backgroundColor: 'rgba(244, 67, 54, 0.08)'
+                },
+              }}
+            >
               <LogoutIcon />
             </IconButton>
           </Toolbar>

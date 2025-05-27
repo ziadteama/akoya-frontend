@@ -38,6 +38,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import KeyIcon from '@mui/icons-material/Key';
+import config from '../config';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -261,7 +262,7 @@ const UsersManagement = () => {
       }
       
       await axios.put(
-        `http://localhost:3000/api/users/${selectedUser.id}`,
+        `${config.apiBaseUrl}/api/users/${selectedUser.id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -284,7 +285,7 @@ const UsersManagement = () => {
         return;
       }
       
-      await axios.delete(`http://localhost:3000/api/users/${selectedUser.id}`, {
+      await axios.delete(`${config.apiBaseUrl}/api/users/${selectedUser.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -317,7 +318,7 @@ const UsersManagement = () => {
       }
       
       await axios.post(
-        `http://localhost:3000/api/users/${selectedUser.id}/change-password`,
+        `${config.apiBaseUrl}/api/users/${selectedUser.id}/change-password`,
         {
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword

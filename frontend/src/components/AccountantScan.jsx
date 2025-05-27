@@ -8,6 +8,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
+import config from '../config';
 
 const beep = () => window.navigator.vibrate?.(150);
 
@@ -52,7 +53,7 @@ const AccountantScan = () => {
 
     try {
       const responses = await Promise.all(
-        newIds.map(id => axios.get(`http://localhost:3000/api/tickets/ticket/${id}`))
+        newIds.map(id => axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`))
       );
       const validDetails = responses.map(r => r.data).filter(data => {
         if (!data.valid) return false;
@@ -80,7 +81,7 @@ const AccountantScan = () => {
     }
 
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/tickets/ticket/${id}`);
+      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`);
       if (!data.valid) {
         showMessage("Ticket is invalid", "error");
         return;
@@ -138,7 +139,7 @@ const AccountantScan = () => {
     }
 
     try {
-      await axios.patch("http://localhost:3000/api/tickets/tickets/assign-types", { assignments });
+      await axios.patch(`${config.apiBaseUrl}/api/tickets/tickets/assign-types`, { assignments });
       showMessage("Tickets assigned!", "success");
       setTicketIds([]);
       setTicketDetails([]);
@@ -152,7 +153,7 @@ const AccountantScan = () => {
   const handleSell = () => setCheckoutOpen(true);
 
   useEffect(() => {
-    axios.get("http://localhost:3000/api/tickets/ticket-types?archived=false")
+    axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types?archived=false`)
       .then((res) => Array.isArray(res.data) && setTypes(res.data))
       .catch(() => showMessage("Failed to fetch ticket types", "error"));
   }, []);

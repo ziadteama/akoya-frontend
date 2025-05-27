@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
+import config from '../config';
 
 const AccountantCategories = () => {
   const [categories, setCategories] = useState({});
@@ -22,7 +23,7 @@ const AccountantCategories = () => {
 
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("http://localhost:3000/api/tickets/ticket-types");
+      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types`);
       const filtered = data.filter(ticket => ticket.archived === showArchived);
       const grouped = filtered.reduce((acc, ticket) => {
         if (!acc[ticket.category]) acc[ticket.category] = [];
@@ -55,7 +56,7 @@ const AccountantCategories = () => {
 
   const handleSave = async (id, price) => {
     try {
-      await axios.patch("http://localhost:3000/api/tickets/update-price", {
+      await axios.patch(`${config.apiBaseUrl}/api/tickets/update-price`, {
         tickets: [{ id, price }],
       });
       setEditing(prev => ({ ...prev, [id]: false }));
@@ -70,7 +71,7 @@ const AccountantCategories = () => {
       return alert("All fields are required and prices must be > 0");
     }
     try {
-      await axios.post("http://localhost:3000/api/tickets/add-type", {
+      await axios.post(`${config.apiBaseUrl}/api/tickets/add-type`, {
         ticketTypes: ["child", "adult", "grand"].map(type => ({
           category: newCategory,
           subcategory: type,
@@ -89,7 +90,7 @@ const AccountantCategories = () => {
 
   const handleToggleArchive = async (categoryName, archived) => {
     try {
-      await axios.patch("http://localhost:3000/api/tickets/archive-category", {
+      await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, {
         category: categoryName,
         archived,
       });

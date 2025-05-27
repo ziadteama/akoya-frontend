@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import WavesIcon from "@mui/icons-material/Waves";
+import config from '../config';
 
 const SignIn = () => {
   // State management
@@ -61,7 +62,7 @@ const SignIn = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      const response = await fetch("http://localhost:3000/api/users/login", {
+      const response = await fetch(`${config.apiBaseUrl}/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

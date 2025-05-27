@@ -15,6 +15,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
+import config from '../config';
 
 const AccountantReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -43,8 +44,8 @@ const AccountantReports = () => {
         : { date: selectedDate.format("YYYY-MM-DD") };
           
       const endpoint = useRange
-        ? "http://localhost:3000/api/orders/range-report"
-        : "http://localhost:3000/api/orders/day-report";
+        ? `${config.apiBaseUrl}/api/orders/range-report`
+        : `${config.apiBaseUrl}/api/orders/day-report`;
           
       const { data } = await axios.get(endpoint, { params });
       

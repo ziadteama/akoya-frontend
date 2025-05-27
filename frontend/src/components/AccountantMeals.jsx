@@ -7,6 +7,7 @@ import {
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
+import config from '../config';
 
 const AccountantMeals = () => {
   const [meals, setMeals] = useState([]);
@@ -23,7 +24,7 @@ const AccountantMeals = () => {
 
   const fetchMeals = async () => {
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/meals?archived=${showArchived}`);
+      const { data } = await axios.get(`${config.apiBaseUrl}/api/meals?archived=${showArchived}`);
       setMeals(data);
     } catch (err) {
       console.error("Error fetching meals:", err);
@@ -36,7 +37,7 @@ const AccountantMeals = () => {
 
   const handleSave = async (id, price) => {
     try {
-      await axios.put("http://localhost:3000/api/meals/edit", {
+      await axios.put(`${config.apiBaseUrl}/api/meals/edit`, {
         meals: [{ id, name: meals.find(m => m.id === id).name, description: meals.find(m => m.id === id).description, price, age_group: meals.find(m => m.id === id).age_group }]
       });
       setEditing(prev => ({ ...prev, [id]: false }));
@@ -51,7 +52,7 @@ const AccountantMeals = () => {
       return alert("All fields are required and price must be > 0");
     }
     try {
-      await axios.post("http://localhost:3000/api/meals/add", {
+      await axios.post(`${config.apiBaseUrl}/api/meals/add`, {
         meals: [{
           name: newName,
           description: newDescription,
@@ -70,7 +71,7 @@ const AccountantMeals = () => {
 
   const handleToggleArchive = async (name, archived) => {
     try {
-      await axios.patch("http://localhost:3000/api/meals/archive", { name, archived });
+      await axios.patch(`${config.apiBaseUrl}/api/meals/archive`, { name, archived });
       setSnackbarMessage(`${name} ${archived ? "archived" : "unarchived"} successfully.`);
       setSnackbarOpen(true);
       fetchMeals();

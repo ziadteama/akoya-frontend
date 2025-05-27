@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import config from '../config';
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
   const [open, setOpen] = useState(false);
@@ -35,7 +36,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
     setAmounts((prev) => ({ ...prev, [method]: Number(value) }));
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/meals?archived=false")
+    fetch(`${config.apiBaseUrl}/api/meals?archived=false`)
       .then((res) => res.json())
       .then((data) => setMeals(data))
       .catch((err) => console.error("Failed to fetch meals:", err));
@@ -142,7 +143,7 @@ const finalTotal = grossTotal - discountAmount;
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/tickets/sell", {
+      const response = await fetch(`${config.apiBaseUrl}/api/tickets/sell`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

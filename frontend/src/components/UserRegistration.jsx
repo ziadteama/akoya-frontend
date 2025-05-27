@@ -14,6 +14,7 @@ import {
   CircularProgress
 } from "@mui/material";
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import config from '../config';
 
 const UserRegistration = () => {
   const [formData, setFormData] = useState({
@@ -98,7 +99,7 @@ const UserRegistration = () => {
     
     try {
       // Use fetch instead of axios
-      const response = await fetch("http://localhost:3000/api/users/register", {
+      const response = await fetch(`${config.apiBaseUrl}/api/users/register`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,

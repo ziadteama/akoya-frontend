@@ -42,6 +42,7 @@ import DateRangeIcon from '@mui/icons-material/DateRange';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import PrintIcon from '@mui/icons-material/Print';
+import config from '../config';
 
 const drawerWidth = 240;
 
@@ -165,7 +166,7 @@ const AdminDashboard = () => {
       
       console.log("Fetching data with params:", params); // Debug log
       
-      const response = await axios.get("http://localhost:3000/api/orders/range-report", { params });
+      const response = await axios.get(`${config.apiBaseUrl}/api/orders/range-report`, { params });
       console.log("API response:", response); // Debug log
       
       // The data is directly in response.data (not in response.data.items)

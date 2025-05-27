@@ -15,6 +15,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import config from '../config';
 
 const AdminCategories = () => {
   // State for categories data
@@ -55,7 +56,7 @@ const AdminCategories = () => {
         return;
       }
       
-      const { data } = await axios.get("http://localhost:3000/api/tickets/ticket-types", {
+      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -104,7 +105,7 @@ const AdminCategories = () => {
     try {
       const token = localStorage.getItem('authToken');
       
-      await axios.patch("http://localhost:3000/api/tickets/update-price", 
+      await axios.patch(`${config.apiBaseUrl}/api/tickets/update-price`, 
         { tickets: [{ id, price }] },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -144,7 +145,7 @@ const AdminCategories = () => {
     try {
       const token = localStorage.getItem('authToken');
       
-      await axios.post("http://localhost:3000/api/tickets/add-type", 
+      await axios.post(`${config.apiBaseUrl}/api/tickets/add-type`, 
         {
           ticketTypes: ["child", "adult", "grand"].map(type => ({
             category: newCategory,
@@ -184,7 +185,7 @@ const AdminCategories = () => {
     try {
       const token = localStorage.getItem('authToken');
       
-      await axios.patch("http://localhost:3000/api/tickets/archive-category", 
+      await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, 
         { category: categoryName, archived },
         { headers: { Authorization: `Bearer ${token}` } }
       );

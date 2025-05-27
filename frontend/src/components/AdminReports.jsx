@@ -32,6 +32,7 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 // Import the OrdersTable component
 import OrdersTable from "./OrdersTable";
+import config from '../config';
 
 const AdminReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -65,8 +66,8 @@ const AdminReports = () => {
         : { date: selectedDate.format("YYYY-MM-DD") };
           
       const endpoint = useRange
-        ? "http://localhost:3000/api/orders/range-report"
-        : "http://localhost:3000/api/orders/day-report";
+        ? `${config.apiBaseUrl}/api/orders/range-report`
+        : `${config.apiBaseUrl}/api/orders/day-report`;
           
       const { data } = await axios.get(endpoint, { params });
       

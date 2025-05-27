@@ -35,6 +35,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
+import config from '../config';
 
 const AdminMeals = () => {
   const [meals, setMeals] = useState([]);
@@ -80,7 +81,7 @@ const AdminMeals = () => {
         return;
       }
       
-      const response = await axios.get(`http://localhost:3000/api/meals`, { 
+      const response = await axios.get(`${config.apiBaseUrl}/api/meals`, { 
         params: { archived: showArchived },
         headers: { Authorization: `Bearer ${token}` }
       });

@@ -137,6 +137,7 @@ const AccountantScan = () => {
     showMessage("All tickets cleared", "info");
   };
 
+  // Update the handleAddTicketId function to log the API response
   const handleAddTicketId = async () => {
     const id = parseInt(input.trim(), 10);
     if (!id || isNaN(id)) return;
@@ -148,6 +149,9 @@ const AccountantScan = () => {
 
     try {
       const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`);
+      // Log the response to check if price is included
+      console.log("Ticket data from API:", data);
+      
       if (!data.valid) {
         showMessage("Ticket is invalid", "error");
         return;
@@ -430,14 +434,9 @@ const AccountantScan = () => {
         <CheckoutPanel
           ticketCounts={
             mode === "sell"
-              ? ticketDetails.reduce((acc, td) => {
-                  // Group by ticket type ID if available
-                  if (td.ticket_type_id) {
-                    acc[td.ticket_type_id] = (acc[td.ticket_type_id] || 0) + 1;
-                  } else {
-                    // Otherwise use ticket ID
-                    acc[`ticket_${td.id}`] = 1;
-                  }
+              ? ticketIds.reduce((acc, id) => {
+                  // Use a simple map counting each ID as 1 ticket
+                  acc[id] = 1;
                   return acc;
                 }, {})
               : ticketDetails.reduce((acc, t) => {
@@ -450,19 +449,27 @@ const AccountantScan = () => {
           }
           types={
             mode === "sell"
-              ? ticketDetails.map(td => ({
-                  id: td.id,
-                  category: td.category || "Ticket",
-                  subcategory: td.subcategory || `ID: ${td.id}`,
-                  price: td.price || 0,
-                  // Just use the ticket ID directly
-                  ticketId: td.id
-                }))
+              ? ticketIds.map(id => {
+                  // Find the matching ticket detail to get the price
+                  const detail = ticketDetails.find(td => td.id === id) || {};
+                  
+                  // Explicitly log and calculate
+                  const price = Number(detail.price || 0);
+                  console.log(`Setting up ticket ${id} with exact price:`, price);
+                  
+                  return {
+                    id: id,
+                    ticketId: id,
+                    category: detail.category || "Ticket",
+                    subcategory: detail.subcategory || `ID: ${id}`,
+                    price
+                  };
+                })
               : types.filter(t => 
                   ticketDetails.some(td => td.ticket_type_id === t.id)
                 ).map(t => ({
                   ...t,
-                  price: t.price || 0
+                  price: Number(t.price || 0)
                 }))
           }
           onCheckout={handleCheckoutSubmit}
@@ -471,7 +478,11 @@ const AccountantScan = () => {
             showMessage("Checkout canceled", "info");
           }}
           mode="existing"
-          ticketIds={ticketIds} // Pass the full list of ticket IDs directly
+          ticketIds={ticketIds} 
+          ticketDetails={ticketDetails.map(detail => ({
+            ...detail,
+            price: Number(detail.price || 0) // Ensure price is a number
+          }))}
         />
       )}
 

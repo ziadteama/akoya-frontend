@@ -32,44 +32,87 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       .catch((err) => console.error("Failed to fetch meals:", err));
   }, []);
 
-  // Create selected tickets based on mode
+  // Validate and normalize the inputs to prevent errors
+  const normalizedTicketCounts = useMemo(() => {
+    if (typeof ticketCounts !== 'object' || ticketCounts === null) {
+      console.warn("Invalid ticketCounts provided", ticketCounts);
+      return {};
+    }
+    return ticketCounts;
+  }, [ticketCounts]);
+
+  const normalizedTypes = useMemo(() => {
+    if (!Array.isArray(types)) {
+      console.warn("Invalid types provided", types);
+      return [];
+    }
+    return types;
+  }, [types]);
+
+  const normalizedTicketIds = useMemo(() => {
+    if (!Array.isArray(ticketIds)) {
+      console.warn("Invalid ticketIds provided", ticketIds);
+      return [];
+    }
+    return ticketIds;
+  }, [ticketIds]);
+
+  const normalizedTicketDetails = useMemo(() => {
+    if (!Array.isArray(ticketDetails)) {
+      console.warn("Invalid ticketDetails provided", ticketDetails);
+      return [];
+    }
+    return ticketDetails;
+  }, [ticketDetails]);
+
+  // Update the selected tickets calculation to handle both modes properly
   const selected = useMemo(() => {
     try {
-      if (mode === "existing" && Array.isArray(ticketIds) && ticketIds.length > 0) {
+      if (mode === "existing" && normalizedTicketIds.length > 0) {
         // For existing tickets, create a representation for each ticket 
-        return ticketIds.map(id => {
-          const matchingDetail = Array.isArray(ticketDetails) 
-            ? ticketDetails.find(td => td.id === id) || {}
-            : {};
-            
+        return normalizedTicketIds.map(id => {
+          // Find the matching detail for this ticket ID
+          const matchingDetail = normalizedTicketDetails.find(td => td && td.id === id) || {};
+          
+          // Log the exact price from the ticket detail
+          console.log(`Processing ticket ${id}, price from API:`, matchingDetail.price);
+          
+          const price = typeof matchingDetail.price === 'number' ? matchingDetail.price : 0;
+          
           return {
             id,
             category: matchingDetail.category || "Ticket",
             subcategory: matchingDetail.subcategory || `ID: ${id}`,
-            price: matchingDetail.price || 0
+            price
           };
         });
-      } else if (Array.isArray(types)) {
+      } else {
         // For new tickets, filter types with counts
-        return types.filter(t => t && t.id && Number(ticketCounts[t.id] || 0) > 0);
+        return normalizedTypes.filter(t => 
+          t && typeof t === 'object' && t.id && 
+          Number(normalizedTicketCounts[t.id] || 0) > 0
+        );
       }
-      
-      return [];
     } catch (error) {
       console.error("Error in selected calculation:", error);
       return [];
     }
-  }, [mode, ticketIds, ticketDetails, types, ticketCounts]);
+  }, [mode, normalizedTicketIds, normalizedTicketDetails, normalizedTypes, normalizedTicketCounts]);
 
-  // Calculate ticket total
+  // Make sure the ticketTotal calculation is correct
   const ticketTotal = useMemo(() => {
     try {
       if (mode === "existing" && Array.isArray(selected)) {
-        return selected.reduce((sum, t) => sum + Number(t?.price || 0), 0);
+        const total = selected.reduce((sum, t) => {
+          const price = typeof t.price === 'number' ? t.price : 0;
+          return sum + price;
+        }, 0);
+        return total;
       } else if (Array.isArray(selected)) {
         return selected.reduce((sum, t) => {
-          const count = Number(ticketCounts[t?.id] || 0);
-          const price = Number(t?.price || 0);
+          if (!t || typeof t !== 'object') return sum;
+          const count = Number(normalizedTicketCounts[t.id] || 0);
+          const price = typeof t.price === 'number' ? t.price : 0;
           return sum + (count * price);
         }, 0);
       }
@@ -78,14 +121,18 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       console.error("Error calculating ticket total:", error);
       return 0;
     }
-  }, [mode, selected, ticketCounts]);
+  }, [mode, selected, normalizedTicketCounts]);
   
   // Calculate meal total
   const mealTotal = useMemo(() => {
     try {
       return Array.isArray(meals) ? meals.reduce(
-        (sum, m) => sum + (mealCounts[m.id] || 0) * (m.price || 0),
-        0
+        (sum, m) => {
+          if (!m || typeof m !== 'object') return sum;
+          const count = Number(mealCounts[m.id] || 0);
+          const price = typeof m.price === 'number' ? m.price : 0;
+          return sum + (count * price);
+        }, 0
       ) : 0;
     } catch (error) {
       console.error("Error calculating meal total:", error);
@@ -105,48 +152,67 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
   // Calculate remaining amount
   const enteredTotal = useMemo(() => {
     try {
+      if (!Array.isArray(selectedMethods)) return 0;
+      
       return selectedMethods
         .filter(method => method !== "discount")
-        .reduce((sum, method) => sum + getAmount(method), 0);
+        .reduce((sum, method) => sum + (amounts[method] || 0), 0); // Use amounts directly
     } catch (error) {
       console.error("Error calculating entered total:", error);
       return 0;
     }
-  }, [selectedMethods, amounts]);
-  
+  }, [selectedMethods, amounts]); // Only depend on selectedMethods and amounts
+
   const remaining = finalTotal - enteredTotal;
 
   // Set full amount if exactly one method is selected
   useEffect(() => {
+    // Avoid updating state if we don't need to
     if (!postponed && selectedMethods.length === 1 && selectedMethods[0] !== "discount") {
-      setAmounts((prev) => ({
-        ...prev,
-        [selectedMethods[0]]: finalTotal
-      }));
+      const currentAmount = amounts[selectedMethods[0]] || 0;
+      // Only set if the amount is different to avoid infinite loop
+      if (Math.abs(currentAmount - finalTotal) >= 0.01) {
+        setAmounts(prev => ({
+          ...prev,
+          [selectedMethods[0]]: finalTotal
+        }));
+      }
     }
-  }, [selectedMethods, finalTotal, postponed]);
+  }, [selectedMethods, finalTotal, postponed, amounts]); // Include amounts in dependencies
 
   // Clear amounts for methods not selected
   useEffect(() => {
     try {
-      Object.keys(amounts).forEach(method => {
-        if (!selectedMethods.includes(method)) {
-          setAmount(method, 0);
+      // Create a new object to track changes
+      const newAmounts = { ...amounts };
+      let hasChanges = false;
+      
+      // Clear unselected methods
+      Object.keys(newAmounts).forEach(method => {
+        if (!selectedMethods.includes(method) && newAmounts[method] !== 0) {
+          newAmounts[method] = 0;
+          hasChanges = true;
         }
       });
-
-      // Reset amounts when multiple payment methods are selected
+      
+      // Reset multiple payment methods
       if (selectedMethods.length > 1) {
         selectedMethods.forEach(method => {
-          if (method !== "discount") {
-            setAmount(method, 0);
+          if (method !== "discount" && newAmounts[method] !== 0) {
+            newAmounts[method] = 0;
+            hasChanges = true;
           }
         });
+      }
+      
+      // Only update state if changes were made
+      if (hasChanges) {
+        setAmounts(newAmounts);
       }
     } catch (error) {
       console.error("Error handling payment methods:", error);
     }
-  }, [selectedMethods]);
+  }, [selectedMethods, amounts]); // Include amounts in dependencies but handle circular updates
 
   const handleAddMeal = () => {
     if (!selectedMealId || customMealQty <= 0) return;
@@ -260,19 +326,23 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         <Typography variant="h6">🧾 Order Summary</Typography>
 
         {Array.isArray(selected) && selected.length > 0 &&
-          selected.map((t) => (
-            <Typography key={t?.id || Math.random()}>
-              {t?.category || 'Unknown'} - {t?.subcategory || 'Unknown'} × {
-                mode === "existing" 
-                  ? 1                  : (ticketCounts[t?.id] || 0)
-              } = EGP{" "}
-              {(
-                mode === "existing" 
-                  ? (t?.price || 0) 
-                  : (ticketCounts[t?.id] || 0) * (t?.price || 0)
-              ).toFixed(2)}
-            </Typography>
-          ))}
+          selected.map((t, index) => {
+            if (!t || typeof t !== 'object') return null;
+            return (
+              <Typography key={t?.id || `ticket-${index}`}>
+                {t?.category || 'Unknown'} - {t?.subcategory || 'Unknown'} × {
+                  mode === "existing" 
+                    ? 1 
+                    : (normalizedTicketCounts[t?.id] || 0)
+                } = EGP{" "}
+                {(
+                  mode === "existing" 
+                    ? (typeof t?.price === 'number' ? t.price : 0) 
+                    : (normalizedTicketCounts[t?.id] || 0) * (typeof t?.price === 'number' ? t.price : 0)
+                ).toFixed(2)}
+              </Typography>
+            );
+          })}
 
         <Box mt={2}>
           <FormControl fullWidth>

@@ -170,7 +170,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     // Avoid updating state if we don't need to
     if (!postponed && selectedMethods.length === 1 && selectedMethods[0] !== "discount") {
       const currentAmount = amounts[selectedMethods[0]] || 0;
-      // Only set if the amount is different to avoid infinite loop
+        // Only update if different by more than a penny to avoid loops
       if (Math.abs(currentAmount - finalTotal) >= 0.01) {
         setAmounts(prev => ({
           ...prev,
@@ -178,41 +178,40 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         }));
       }
     }
-  }, [selectedMethods, finalTotal, postponed, amounts]); // Include amounts in dependencies
+  }, [selectedMethods, finalTotal, postponed]); // Remove amounts from dependencies
 
   // Clear amounts for methods not selected
   useEffect(() => {
     try {
-      // Create a new object to track changes
-      const newAmounts = { ...amounts };
-      let hasChanges = false;
+      // Avoid state updates when possible to break the loop
+      let updatedAmounts = null;
       
       // Clear unselected methods
-      Object.keys(newAmounts).forEach(method => {
-        if (!selectedMethods.includes(method) && newAmounts[method] !== 0) {
-          newAmounts[method] = 0;
-          hasChanges = true;
+      Object.keys(amounts).forEach(method => {
+        if (!selectedMethods.includes(method) && amounts[method] !== 0) {
+          if (!updatedAmounts) updatedAmounts = { ...amounts };
+          updatedAmounts[method] = 0;
         }
       });
       
-      // Reset multiple payment methods
+      // Reset multiple payment methods except discount
       if (selectedMethods.length > 1) {
         selectedMethods.forEach(method => {
-          if (method !== "discount" && newAmounts[method] !== 0) {
-            newAmounts[method] = 0;
-            hasChanges = true;
+          if (method !== "discount" && amounts[method] !== 0 && !postponed) {
+            if (!updatedAmounts) updatedAmounts = { ...amounts };
+            updatedAmounts[method] = 0;
           }
         });
       }
       
-      // Only update state if changes were made
-      if (hasChanges) {
-        setAmounts(newAmounts);
+      // Only update state if we have changes to make
+      if (updatedAmounts) {
+        setAmounts(updatedAmounts);
       }
     } catch (error) {
       console.error("Error handling payment methods:", error);
     }
-  }, [selectedMethods, amounts]); // Include amounts in dependencies but handle circular updates
+  }, [selectedMethods]); // Don't include amounts in dependencies
 
   const handleAddMeal = () => {
     if (!selectedMealId || customMealQty <= 0) return;
@@ -236,6 +235,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     setOpen(true);
   };
 
+  // Update the handleConfirm function to pass properly structured data
   const handleConfirm = async () => {
     try {
       const user_id = parseInt(localStorage.getItem("userId"), 10);
@@ -244,6 +244,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         return;
       }
 
+      // Structure payments data
       const payments = selectedMethods
         .map((method) => ({
           method,
@@ -252,27 +253,21 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         .filter((p) => p.amount !== 0);
 
       // Create payload based on mode
-      let payload;
+      let payload = {
+        user_id,
+        description: description.trim(),
+        payments
+      };
       
       if (mode === "existing") {
         // For existing tickets (AccountantScan)
-        payload = {
-          ticket_ids: Array.isArray(ticketIds) ? ticketIds : [],
-          user_id,
-          description: description.trim(),
-          payments
-        };
+        payload.ticket_ids = Array.isArray(ticketIds) ? ticketIds : [];
       } else {
         // For new tickets (CashierSellingPanel)
-        payload = {
-          user_id,
-          description: description.trim(),
-          tickets: selected.map((t) => ({
-            ticket_type_id: parseInt(t.id, 10),
-            quantity: parseInt(ticketCounts[t.id], 10)
-          })),
-          payments
-        };
+        payload.tickets = selected.map((t) => ({
+          ticket_type_id: parseInt(t.id, 10),
+          quantity: parseInt(ticketCounts[t.id], 10)
+        }));
       }
 
       // Add meals if present
@@ -287,28 +282,10 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         });
       }
 
-      // Use different endpoints based on mode
-      const endpoint = mode === "existing" 
-        ? `${config.apiBaseUrl}/api/tickets/checkout-existing`
-        : `${config.apiBaseUrl}/api/tickets/sell`;
+      // Call the onCheckout callback with the payload data
+      onCheckout(payload);
       
-      const method = mode === "existing" ? "PUT" : "POST";
-      
-      const response = await fetch(endpoint, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        alert("Checkout failed: " + (errData?.message || response.statusText));
-        return;
-      }
-
-      const responseData = await response.json();
-      
-      onCheckout({...payload, order_id: responseData.order_id});
+      // Reset the component state
       setOpen(false);
       setDescription("");
       setSelectedMethods([]);
@@ -316,7 +293,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       setMealCounts({});
     } catch (error) {
       console.error("Checkout error:", error);
-      alert("Network error. Please try again.");
+      alert("Error preparing checkout data. Please try again.");
     }
   };
 

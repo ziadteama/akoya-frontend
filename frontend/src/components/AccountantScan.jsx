@@ -11,6 +11,7 @@ import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
 import config from '../config';
+import ErrorBoundary from './ErrorBoundary';
 
 const beep = () => window.navigator.vibrate?.(150);
 
@@ -157,6 +158,12 @@ const AccountantScan = () => {
         return;
       }
 
+      // Check if the ticket is already sold
+      if (data.status === 'sold') {
+        showMessage("This ticket has already been sold", "error");
+        return;
+      }
+
       if ((mode === "assign" && (data.status !== "available" || data.ticket_type_id !== null)) ||
           (mode === "sell" && data.status !== "available")) {
         showMessage("Ticket is not available for this operation", "error");
@@ -168,7 +175,8 @@ const AccountantScan = () => {
       showMessage("Ticket added!", "success");
       setInput("");
     } catch (err) {
-      showMessage("Ticket not found", "error");
+      console.error("Error adding ticket:", err);
+      showMessage("Ticket not found or server error", "error");
     }
   };
 
@@ -222,27 +230,34 @@ const AccountantScan = () => {
 
   const handleSell = () => setCheckoutOpen(true);
 
-  const handleCheckoutSubmit = async (paymentDetails) => {
+  const handleCheckoutSubmit = async (checkoutData) => {
     try {
-      // Sanitize and format the payload for the API
+      // Extract payment information from the checkout data passed from CheckoutPanel
+      const payments = checkoutData.payments || [];
+      
+      // Create the payload with the data from CheckoutPanel
       const payload = {
-        ticket_ids: ticketIds, // This already contains the correct ticket IDs
-        user_id: parseInt(localStorage.getItem('userId') || '1'),
-        description: paymentDetails.description || '',
-        payments: Array.isArray(paymentDetails.payments) && paymentDetails.payments.length > 0 
-          ? paymentDetails.payments 
-          : [{ 
-              method: paymentDetails.paymentMethod || 'cash',
-              amount: parseFloat((paymentDetails.totalAmount || 0).toFixed(2)) 
-            }]
+        ticket_ids: ticketIds,
+        user_id: parseInt(localStorage.getItem('userId') || '1', 10),
+        description: checkoutData.description || '',
+        payments: payments.filter(p => p.method !== 'discount' && p.amount > 0)
       };
       
-      // Add meals if present and valid
-      if (Array.isArray(paymentDetails.meals) && paymentDetails.meals.length > 0) {
-        payload.meals = paymentDetails.meals;
+      // Add meals if present
+      if (Array.isArray(checkoutData.meals) && checkoutData.meals.length > 0) {
+        payload.meals = checkoutData.meals;
       }
       
       console.log('Sending checkout payload:', payload);
+      
+      // Ensure we have valid data
+      if (!Array.isArray(payload.ticket_ids) || payload.ticket_ids.length === 0) {
+        throw new Error("No tickets selected");
+      }
+      
+      if (!Array.isArray(payload.payments) || payload.payments.length === 0) {
+        throw new Error("No payment methods selected");
+      }
       
       const response = await axios.put(
         `${config.apiBaseUrl}/api/tickets/checkout-existing`, 
@@ -255,10 +270,7 @@ const AccountantScan = () => {
       showMessage(`Tickets sold successfully! Order #${response.data.order_id || 'Created'}`, "success");
     } catch (error) {
       console.error("Checkout error:", error);
-      showMessage(
-        `Failed to process checkout: ${error.response?.data?.message || error.message}`,
-        "error"
-      );
+      showMessage(`Failed to process checkout: ${error.message || 'Unknown error'}`, "error");
     }
   };
 
@@ -287,215 +299,217 @@ const AccountantScan = () => {
 
   // Add this useEffect to show checkout panel automatically in sell mode
   useEffect(() => {
-    if (mode === "sell" && ticketIds.length > 0) {
+    if (mode === "sell" && ticketIds.length > 0 && !checkoutOpen) {
       setCheckoutOpen(true);
     }
-  }, [ticketIds, mode]);
+  }, [ticketIds.length, mode]); // Don't include checkoutOpen in dependencies
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" mb={2}>Manage Tickets</Typography>
+    <ErrorBoundary>
+      <Box p={3}>
+        <Typography variant="h4" mb={2}>Manage Tickets</Typography>
 
-      <ToggleButtonGroup
-        value={mode}
-        exclusive
-        onChange={handleModeChange}
-        sx={{ mb: 2 }}
-      >
-        <ToggleButton value="assign">Assign Ticket Types</ToggleButton>
-        <ToggleButton value="sell">Sell Tickets</ToggleButton>
-      </ToggleButtonGroup>
+        <ToggleButtonGroup
+          value={mode}
+          exclusive
+          onChange={handleModeChange}
+          sx={{ mb: 2 }}
+        >
+          <ToggleButton value="assign">Assign Ticket Types</ToggleButton>
+          <ToggleButton value="sell">Sell Tickets</ToggleButton>
+        </ToggleButtonGroup>
 
-      <TextField
-        label="Enter Ticket ID"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleAddTicketId()}
-        fullWidth
-        sx={{ mb: 1 }}
-      />
+        <TextField
+          label="Enter Ticket ID"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAddTicketId()}
+          fullWidth
+          sx={{ mb: 1 }}
+        />
 
-      {mode === "assign" && (
-        <Box display="flex" gap={2} mb={2}>
-          <TextField label="From ID" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
-          <TextField label="To ID" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
-          <Button 
-            variant="outlined" 
-            onClick={handleRangeAdd} 
-            disabled={loading}
-          >
-            {loading ? "Loading..." : "Add Range"}
-          </Button>
-        </Box>
-      )}
-
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">
-            Ticket IDs: {ticketIds.length}
-          </Typography>
-          {ticketIds.length > 0 && (
-            <Tooltip title="Clear all tickets">
-              <IconButton color="error" onClick={handleClearAll}>
-                <ClearAllIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
-        
-        <List>
-          {ticketDetails.map((ticket) => (
-            <ListItem
-              key={ticket.id}
-              secondaryAction={
-                <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveTicket(ticket.id)}>
-                  <DeleteIcon />
-                </IconButton>
-              }
+        {mode === "assign" && (
+          <Box display="flex" gap={2} mb={2}>
+            <TextField label="From ID" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
+            <TextField label="To ID" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
+            <Button 
+              variant="outlined" 
+              onClick={handleRangeAdd} 
+              disabled={loading}
             >
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <span>Ticket ID: {ticket.id}</span>
-                    <Chip 
-                      label={ticket.category && ticket.subcategory ? `${ticket.category} / ${ticket.subcategory}` : 'Unassigned'} 
-                      size="small"
-                      color={ticket.category ? 'primary' : 'default'}
-                      variant={ticket.category ? 'filled' : 'outlined'}
-                    />
-                  </Box>
-                }
-                secondary={`Created At: ${new Date(ticket.created_at).toLocaleString()}`}
-              />
-            </ListItem>
-          ))}
-          <div ref={listEndRef}></div>
-        </List>
-        
-        {ticketIds.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            {mode === "assign" ? (
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                onClick={() => setSelectorOpen(true)}
-              >
-                Assign Ticket Types
-              </Button>
-            ) : null /* No button in sell mode */}
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={handleClearAll}
-              fullWidth={mode === "sell"} // Make full width in sell mode
-            >
-              Clear All
+              {loading ? "Loading..." : "Add Range"}
             </Button>
           </Box>
         )}
-      </Paper>
 
-      <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>Assign Ticket Counts by Category</DialogTitle>
-        <Box p={3}>
-          {Object.entries(groupedTypes).map(([category, subtypes]) => (
-            <Box key={category} sx={{ mb: 2 }}>
-              <Typography variant="h6" gutterBottom>{category}</Typography>
-              {subtypes.map((type) => (
-                <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography>{type.subcategory}</Typography>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Button variant="outlined" onClick={() => handleIncrement(type.id)}>+</Button>
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={ticketCounts[type.id] || 0}
-                      onChange={(e) => handleManualCount(type.id, e.target.value)}
-                      sx={{ width: 60 }}
-                    />
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
-          ))}
-          <Button
-            variant="contained"
-            onClick={handleAssign}
-            disabled={ticketIds.length === 0}
-            sx={{ mt: 2 }}
-          >
-            Confirm Assignment
-          </Button>
-        </Box>
-      </Dialog>
-
-      {checkoutOpen && (
-        <CheckoutPanel
-          ticketCounts={
-            mode === "sell"
-              ? ticketIds.reduce((acc, id) => {
-                  // Use a simple map counting each ID as 1 ticket
-                  acc[id] = 1;
-                  return acc;
-                }, {})
-              : ticketDetails.reduce((acc, t) => {
-                  const typeId = t.ticket_type_id;
-                  if (typeId) {
-                    acc[typeId] = (acc[typeId] || 0) + 1;
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6">
+              Ticket IDs: {ticketIds.length}
+            </Typography>
+            {ticketIds.length > 0 && (
+              <Tooltip title="Clear all tickets">
+                <IconButton color="error" onClick={handleClearAll}>
+                  <ClearAllIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+          
+          <List>
+            {ticketDetails.map((ticket) => (
+              <ListItem
+                key={ticket.id}
+                secondaryAction={
+                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveTicket(ticket.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>Ticket ID: {ticket.id}</span>
+                      <Chip 
+                        label={ticket.category && ticket.subcategory ? `${ticket.category} / ${ticket.subcategory}` : 'Unassigned'} 
+                        size="small"
+                        color={ticket.category ? 'primary' : 'default'}
+                        variant={ticket.category ? 'filled' : 'outlined'}
+                      />
+                    </Box>
                   }
-                  return acc;
-                }, {})
-          }
-          types={
-            mode === "sell"
-              ? ticketIds.map(id => {
-                  // Find the matching ticket detail to get the price
-                  const detail = ticketDetails.find(td => td.id === id) || {};
-                  
-                  // Explicitly log and calculate
-                  const price = Number(detail.price || 0);
-                  console.log(`Setting up ticket ${id} with exact price:`, price);
-                  
-                  return {
-                    id: id,
-                    ticketId: id,
-                    category: detail.category || "Ticket",
-                    subcategory: detail.subcategory || `ID: ${id}`,
-                    price
-                  };
-                })
-              : types.filter(t => 
-                  ticketDetails.some(td => td.ticket_type_id === t.id)
-                ).map(t => ({
-                  ...t,
-                  price: Number(t.price || 0)
-                }))
-          }
-          onCheckout={handleCheckoutSubmit}
-          onClear={() => {
-            setCheckoutOpen(false);
-            showMessage("Checkout canceled", "info");
-          }}
-          mode="existing"
-          ticketIds={ticketIds} 
-          ticketDetails={ticketDetails.map(detail => ({
-            ...detail,
-            price: Number(detail.price || 0) // Ensure price is a number
-          }))}
-        />
-      )}
+                  secondary={`Created At: ${new Date(ticket.created_at).toLocaleString()}`}
+                />
+              </ListItem>
+            ))}
+            <div ref={listEndRef}></div>
+          </List>
+          
+          {ticketIds.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              {mode === "assign" ? (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={() => setSelectorOpen(true)}
+                >
+                  Assign Ticket Types
+                </Button>
+              ) : null /* No button in sell mode */}
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleClearAll}
+                fullWidth={mode === "sell"} // Make full width in sell mode
+              >
+                Clear All
+              </Button>
+            </Box>
+          )}
+        </Paper>
 
-      <Snackbar
-        open={message.open}
-        autoHideDuration={3000}
-        onClose={() => setMessage({ ...message, open: false })}
-      >
-        <Alert severity={message.type} onClose={() => setMessage({ ...message, open: false })}>
-          {message.text}
-        </Alert>
-      </Snackbar>
-    </Box>
+        <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="md">
+          <DialogTitle>Assign Ticket Counts by Category</DialogTitle>
+          <Box p={3}>
+            {Object.entries(groupedTypes).map(([category, subtypes]) => (
+              <Box key={category} sx={{ mb: 2 }}>
+                <Typography variant="h6" gutterBottom>{category}</Typography>
+                {subtypes.map((type) => (
+                  <Paper key={type.id} sx={{ mb: 1, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography>{type.subcategory}</Typography>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Button variant="outlined" onClick={() => handleIncrement(type.id)}>+</Button>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={ticketCounts[type.id] || 0}
+                        onChange={(e) => handleManualCount(type.id, e.target.value)}
+                        sx={{ width: 60 }}
+                      />
+                    </Box>
+                  </Paper>
+                ))}
+              </Box>
+            ))}
+            <Button
+              variant="contained"
+              onClick={handleAssign}
+              disabled={ticketIds.length === 0}
+              sx={{ mt: 2 }}
+            >
+              Confirm Assignment
+            </Button>
+          </Box>
+        </Dialog>
+
+        {checkoutOpen && (
+          <CheckoutPanel
+            ticketCounts={
+              mode === "sell"
+                ? ticketIds.reduce((acc, id) => {
+                    // Use a simple map counting each ID as 1 ticket
+                    acc[id] = 1;
+                    return acc;
+                  }, {})
+                : ticketDetails.reduce((acc, t) => {
+                    const typeId = t.ticket_type_id;
+                    if (typeId) {
+                      acc[typeId] = (acc[typeId] || 0) + 1;
+                    }
+                    return acc;
+                  }, {})
+            }
+            types={
+              mode === "sell"
+                ? ticketIds.map(id => {
+                    // Find the matching ticket detail to get the price
+                    const detail = ticketDetails.find(td => td.id === id) || {};
+                    
+                    // Explicitly log and calculate
+                    const price = Number(detail.price || 0);
+                    console.log(`Setting up ticket ${id} with exact price:`, price);
+                    
+                    return {
+                      id: id,
+                      ticketId: id,
+                      category: detail.category || "Ticket",
+                      subcategory: detail.subcategory || `ID: ${id}`,
+                      price
+                    };
+                  })
+                : types.filter(t => 
+                    ticketDetails.some(td => td.ticket_type_id === t.id)
+                  ).map(t => ({
+                    ...t,
+                    price: Number(t.price || 0)
+                  }))
+            }
+            onCheckout={handleCheckoutSubmit}
+            onClear={() => {
+              setCheckoutOpen(false);
+              showMessage("Checkout canceled", "info");
+            }}
+            mode="existing"
+            ticketIds={ticketIds} 
+            ticketDetails={ticketDetails.map(detail => ({
+              ...detail,
+              price: Number(detail.price || 0) // Ensure price is a number
+            }))}
+          />
+        )}
+
+        <Snackbar
+          open={message.open}
+          autoHideDuration={3000}
+          onClose={() => setMessage({ ...message, open: false })}
+        >
+          <Alert severity={message.type} onClose={() => setMessage({ ...message, open: false })}>
+            {message.text}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </ErrorBoundary>
   );
 };
 

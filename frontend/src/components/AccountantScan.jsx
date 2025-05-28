@@ -152,6 +152,46 @@ const AccountantScan = () => {
 
   const handleSell = () => setCheckoutOpen(true);
 
+  const handleCheckoutSubmit = async (paymentDetails) => {
+    try {
+      // Sanitize and format the payload for the API
+      const payload = {
+        ticket_ids: ticketIds,
+        user_id: parseInt(localStorage.getItem('userId') || '1'),
+        description: paymentDetails.description || '',
+        payments: Array.isArray(paymentDetails.payments) && paymentDetails.payments.length > 0 
+          ? paymentDetails.payments 
+          : [{ 
+              method: paymentDetails.paymentMethod || 'cash',
+              amount: parseFloat((paymentDetails.totalAmount || 0).toFixed(2)) 
+            }]
+      };
+      
+      // Add meals if present and valid
+      if (Array.isArray(paymentDetails.meals) && paymentDetails.meals.length > 0) {
+        payload.meals = paymentDetails.meals;
+      }
+      
+      console.log('Sending checkout payload:', payload);
+      
+      const response = await axios.put(
+        `${config.apiBaseUrl}/api/tickets/checkout-existing`, 
+        payload
+      );
+      
+      setCheckoutOpen(false);
+      setTicketIds([]);
+      setTicketDetails([]);
+      showMessage(`Tickets sold successfully! Order #${response.data.order_id || 'Created'}`, "success");
+    } catch (error) {
+      console.error("Checkout error:", error);
+      showMessage(
+        `Failed to process checkout: ${error.response?.data?.message || error.message}`,
+        "error"
+      );
+    }
+  };
+
   useEffect(() => {
     axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types?archived=false`)
       .then((res) => Array.isArray(res.data) && setTypes(res.data))
@@ -256,16 +296,19 @@ const AccountantScan = () => {
       {checkoutOpen && (
         <CheckoutPanel
           ticketCounts={ticketDetails.reduce((acc, t) => {
-            acc[t.ticket_type_id] = (acc[t.ticket_type_id] || 0) + 1;
+            const id = t.ticket_type_id;
+            if (id) {
+              acc[id] = (acc[id] || 0) + 1;
+            }
             return acc;
           }, {})}
-          types={types.filter(t => ticketDetails.some(td => td.ticket_type_id === t.id))}
-          onCheckout={() => {
-            setCheckoutOpen(false);
-            setTicketIds([]);
-            setTicketDetails([]);
-            showMessage("Tickets sold!", "success");
-          }}
+          types={types.filter(t => 
+            ticketDetails.some(td => td.ticket_type_id === t.id)
+          ).map(t => ({
+            ...t,
+            price: t.price || 0
+          }))}
+          onCheckout={handleCheckoutSubmit}
           onClear={() => {
             setCheckoutOpen(false);
             showMessage("Checkout canceled", "info");

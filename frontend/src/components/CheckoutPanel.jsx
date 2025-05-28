@@ -30,6 +30,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
 
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
+  const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const getAmount = (method) => amounts[method] || 0;
   const setAmount = (method, value) =>
@@ -166,6 +167,45 @@ const finalTotal = grossTotal - discountAmount;
     }
   };
 
+  const handleSubmit = () => {
+    // Create valid payments array from the selected methods
+    const payments = selectedMethods
+      .filter(method => method !== 'discount')
+      .map(method => ({
+        method,
+        amount: parseFloat((amounts[method] || 0).toFixed(2))
+      }))
+      .filter(p => p.amount > 0);
+    
+    // Create meal items if any
+    const mealItems = Object.entries(mealCounts)
+      .map(([meal_id, quantity]) => {
+        if (quantity <= 0) return null;
+        const meal = meals.find(m => m.id === parseInt(meal_id));
+        return {
+          meal_id: parseInt(meal_id),
+          quantity,
+          price_at_order: meal?.price || 0
+        };
+      })
+      .filter(Boolean);
+    
+    // Create complete payment details object
+    const paymentDetails = {
+      // For backward compatibility with your current implementation
+      paymentMethod: selectedMethods.length > 0 ? selectedMethods[0] : 'cash',
+      totalAmount: finalTotal,
+      // New properties with more complete data
+      payments,
+      meals: mealItems,
+      description: '',  // Add a description field if needed
+      discountAmount: getAmount('discount')
+    };
+    
+    console.log('Submitting payment details:', paymentDetails);
+    onCheckout(paymentDetails);
+  };
+
   return (
     <>
       <Box mt={4} p={3} border="1px solid #00AEEF" borderRadius={2} bgcolor="#E0F7FF">
@@ -237,7 +277,7 @@ const finalTotal = grossTotal - discountAmount;
           <Button
             variant="contained"
             fullWidth
-            onClick={() => setOpen(true)}
+            onClick={handleSubmit} 
             disabled={!hasItems}
           >
             Checkout

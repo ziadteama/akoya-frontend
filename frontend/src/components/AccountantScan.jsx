@@ -222,7 +222,7 @@ const AccountantScan = () => {
     try {
       // Sanitize and format the payload for the API
       const payload = {
-        ticket_ids: ticketIds,
+        ticket_ids: ticketIds, // This already contains the correct ticket IDs
         user_id: parseInt(localStorage.getItem('userId') || '1'),
         description: paymentDetails.description || '',
         payments: Array.isArray(paymentDetails.payments) && paymentDetails.payments.length > 0 
@@ -270,6 +270,24 @@ const AccountantScan = () => {
     return acc;
   }, {});
 
+  // Add this new function to handle mode changes
+  const handleModeChange = (e, val) => {
+    if (val) {
+      // Close checkout panel when switching modes
+      if (val !== mode && checkoutOpen) {
+        setCheckoutOpen(false);
+      }
+      setMode(val);
+    }
+  };
+
+  // Add this useEffect to show checkout panel automatically in sell mode
+  useEffect(() => {
+    if (mode === "sell" && ticketIds.length > 0) {
+      setCheckoutOpen(true);
+    }
+  }, [ticketIds, mode]);
+
   return (
     <Box p={3}>
       <Typography variant="h4" mb={2}>Manage Tickets</Typography>
@@ -277,7 +295,7 @@ const AccountantScan = () => {
       <ToggleButtonGroup
         value={mode}
         exclusive
-        onChange={(e, val) => val && setMode(val)}
+        onChange={handleModeChange}
         sx={{ mb: 2 }}
       >
         <ToggleButton value="assign">Assign Ticket Types</ToggleButton>
@@ -352,18 +370,21 @@ const AccountantScan = () => {
         
         {ticketIds.length > 0 && (
           <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              onClick={mode === "assign" ? () => setSelectorOpen(true) : handleSell}
-            >
-              {mode === "assign" ? "Assign Ticket Types" : "Checkout"}
-            </Button>
+            {mode === "assign" ? (
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                onClick={() => setSelectorOpen(true)}
+              >
+                Assign Ticket Types
+              </Button>
+            ) : null /* No button in sell mode */}
             <Button
               variant="outlined"
               color="error"
               onClick={handleClearAll}
+              fullWidth={mode === "sell"} // Make full width in sell mode
             >
               Clear All
             </Button>
@@ -407,24 +428,50 @@ const AccountantScan = () => {
 
       {checkoutOpen && (
         <CheckoutPanel
-          ticketCounts={ticketDetails.reduce((acc, t) => {
-            const id = t.ticket_type_id;
-            if (id) {
-              acc[id] = (acc[id] || 0) + 1;
-            }
-            return acc;
-          }, {})}
-          types={types.filter(t => 
-            ticketDetails.some(td => td.ticket_type_id === t.id)
-          ).map(t => ({
-            ...t,
-            price: t.price || 0
-          }))}
+          ticketCounts={
+            mode === "sell"
+              ? ticketDetails.reduce((acc, td) => {
+                  // Group by ticket type ID if available
+                  if (td.ticket_type_id) {
+                    acc[td.ticket_type_id] = (acc[td.ticket_type_id] || 0) + 1;
+                  } else {
+                    // Otherwise use ticket ID
+                    acc[`ticket_${td.id}`] = 1;
+                  }
+                  return acc;
+                }, {})
+              : ticketDetails.reduce((acc, t) => {
+                  const typeId = t.ticket_type_id;
+                  if (typeId) {
+                    acc[typeId] = (acc[typeId] || 0) + 1;
+                  }
+                  return acc;
+                }, {})
+          }
+          types={
+            mode === "sell"
+              ? ticketDetails.map(td => ({
+                  id: td.id,
+                  category: td.category || "Ticket",
+                  subcategory: td.subcategory || `ID: ${td.id}`,
+                  price: td.price || 0,
+                  // Just use the ticket ID directly
+                  ticketId: td.id
+                }))
+              : types.filter(t => 
+                  ticketDetails.some(td => td.ticket_type_id === t.id)
+                ).map(t => ({
+                  ...t,
+                  price: t.price || 0
+                }))
+          }
           onCheckout={handleCheckoutSubmit}
           onClear={() => {
             setCheckoutOpen(false);
             showMessage("Checkout canceled", "info");
           }}
+          mode="existing"
+          ticketIds={ticketIds} // Pass the full list of ticket IDs directly
         />
       )}
 

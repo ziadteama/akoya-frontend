@@ -1,40 +1,29 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Box,
-  Typography,
-  Button,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  Select,
-  InputLabel,
-  FormControl,
-  IconButton,
-  Chip,
+  Box, Typography, Button, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, MenuItem, Select, InputLabel, FormControl, IconButton
 } from "@mui/material";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import config from '../config';
 
-const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
+const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new", ticketIds = [], ticketDetails = [] }) => {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [mealCounts, setMealCounts] = useState({});
   const [meals, setMeals] = useState([]);
   const [selectedMealId, setSelectedMealId] = useState("");
   const [customMealQty, setCustomMealQty] = useState(1);
-
+  
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [amounts, setAmounts] = useState({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-
+  
   const getAmount = (method) => amounts[method] || 0;
   const setAmount = (method, value) =>
     setAmounts((prev) => ({ ...prev, [method]: Number(value) }));
+  
+  // Flag to check if postponed payment is selected
+  const postponed = selectedMethods.includes('postponed');
 
   useEffect(() => {
     fetch(`${config.apiBaseUrl}/api/meals?archived=false`)
@@ -43,51 +32,119 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear }) => {
       .catch((err) => console.error("Failed to fetch meals:", err));
   }, []);
 
-  const selected = types.filter((t) => Number(ticketCounts[t.id] || 0) > 0);
-  const ticketTotal = selected.reduce(
-    (sum, t) => sum + Number(ticketCounts[t.id]) * Number(t.price),
-    0
-  );
-  const mealTotal = meals.reduce(
-    (sum, m) => sum + (mealCounts[m.id] || 0) * m.price,
-    0
-  );
+  // Create selected tickets based on mode
+  const selected = useMemo(() => {
+    try {
+      if (mode === "existing" && Array.isArray(ticketIds) && ticketIds.length > 0) {
+        // For existing tickets, create a representation for each ticket 
+        return ticketIds.map(id => {
+          const matchingDetail = Array.isArray(ticketDetails) 
+            ? ticketDetails.find(td => td.id === id) || {}
+            : {};
+            
+          return {
+            id,
+            category: matchingDetail.category || "Ticket",
+            subcategory: matchingDetail.subcategory || `ID: ${id}`,
+            price: matchingDetail.price || 0
+          };
+        });
+      } else if (Array.isArray(types)) {
+        // For new tickets, filter types with counts
+        return types.filter(t => t && t.id && Number(ticketCounts[t.id] || 0) > 0);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("Error in selected calculation:", error);
+      return [];
+    }
+  }, [mode, ticketIds, ticketDetails, types, ticketCounts]);
+
+  // Calculate ticket total
+  const ticketTotal = useMemo(() => {
+    try {
+      if (mode === "existing" && Array.isArray(selected)) {
+        return selected.reduce((sum, t) => sum + Number(t?.price || 0), 0);
+      } else if (Array.isArray(selected)) {
+        return selected.reduce((sum, t) => {
+          const count = Number(ticketCounts[t?.id] || 0);
+          const price = Number(t?.price || 0);
+          return sum + (count * price);
+        }, 0);
+      }
+      return 0;
+    } catch (error) {
+      console.error("Error calculating ticket total:", error);
+      return 0;
+    }
+  }, [mode, selected, ticketCounts]);
+  
+  // Calculate meal total
+  const mealTotal = useMemo(() => {
+    try {
+      return Array.isArray(meals) ? meals.reduce(
+        (sum, m) => sum + (mealCounts[m.id] || 0) * (m.price || 0),
+        0
+      ) : 0;
+    } catch (error) {
+      console.error("Error calculating meal total:", error);
+      return 0;
+    }
+  }, [meals, mealCounts]);
+  
   const grossTotal = ticketTotal + mealTotal;
-const discountAmount = getAmount("discount");
-const finalTotal = grossTotal - discountAmount;
+  const discountAmount = getAmount("discount");
+  const finalTotal = grossTotal - discountAmount;
 
-  const hasItems = selected.length > 0 || Object.values(mealCounts).some(qty => qty > 0);
+  const hasItems = useMemo(() => {
+    return (Array.isArray(selected) && selected.length > 0) || 
+      Object.values(mealCounts).some(qty => qty > 0);
+  }, [selected, mealCounts]);
 
+  // Calculate remaining amount
   const enteredTotal = useMemo(() => {
-  return selectedMethods
-    .filter(method => method !== "discount")
-    .reduce((sum, method) => sum + getAmount(method), 0);
-}, [selectedMethods, amounts]);
-
+    try {
+      return selectedMethods
+        .filter(method => method !== "discount")
+        .reduce((sum, method) => sum + getAmount(method), 0);
+    } catch (error) {
+      console.error("Error calculating entered total:", error);
+      return 0;
+    }
+  }, [selectedMethods, amounts]);
+  
   const remaining = finalTotal - enteredTotal;
 
+  // Set full amount if exactly one method is selected
   useEffect(() => {
-    if (selectedMethods.length === 1 && selectedMethods[0] !== "discount") {
+    if (!postponed && selectedMethods.length === 1 && selectedMethods[0] !== "discount") {
       setAmounts((prev) => ({
         ...prev,
         [selectedMethods[0]]: finalTotal
       }));
     }
-  }, [selectedMethods, finalTotal]);
+  }, [selectedMethods, finalTotal, postponed]);
 
+  // Clear amounts for methods not selected
   useEffect(() => {
-    Object.keys(amounts).forEach(method => {
-      if (!selectedMethods.includes(method)) {
-        setAmount(method, 0);
-      }
-    });
-
-    if (selectedMethods.length > 1) {
-      selectedMethods.forEach(method => {
-        if (method !== "discount") {
+    try {
+      Object.keys(amounts).forEach(method => {
+        if (!selectedMethods.includes(method)) {
           setAmount(method, 0);
         }
       });
+
+      // Reset amounts when multiple payment methods are selected
+      if (selectedMethods.length > 1) {
+        selectedMethods.forEach(method => {
+          if (method !== "discount") {
+            setAmount(method, 0);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error handling payment methods:", error);
     }
   }, [selectedMethods]);
 
@@ -109,43 +166,70 @@ const finalTotal = grossTotal - discountAmount;
     });
   };
 
+  const handleSubmit = () => {
+    setOpen(true);
+  };
+
   const handleConfirm = async () => {
-    const user_id = parseInt(localStorage.getItem("userId"), 10);
-    if (!user_id || isNaN(user_id)) {
-      alert("Missing or invalid user ID.");
-      return;
-    }
-
-    const payments = selectedMethods.map((method) => ({
-      method,
-      amount: parseFloat((amounts[method] || 0).toFixed(2))
-    })).filter((p) => p.amount !== 0);
-
-    const tickets = selected.map((t) => ({
-      ticket_type_id: parseInt(t.id, 10),
-      quantity: parseInt(ticketCounts[t.id], 10)
-    }));
-
-    const mealsPayload = Object.entries(mealCounts).map(([meal_id, quantity]) => {
-      const meal = meals.find((m) => m.id === parseInt(meal_id));
-      return {
-        meal_id: parseInt(meal_id),
-        quantity,
-        price_at_order: meal?.price || 0
-      };
-    });
-
-    const payload = {
-      user_id,
-      description: description.trim(),
-      tickets,
-      payments,
-      meals: mealsPayload
-    };
-
     try {
-      const response = await fetch(`${config.apiBaseUrl}/api/tickets/sell`, {
-        method: "POST",
+      const user_id = parseInt(localStorage.getItem("userId"), 10);
+      if (!user_id || isNaN(user_id)) {
+        alert("Missing or invalid user ID.");
+        return;
+      }
+
+      const payments = selectedMethods
+        .map((method) => ({
+          method,
+          amount: parseFloat((amounts[method] || 0).toFixed(2))
+        }))
+        .filter((p) => p.amount !== 0);
+
+      // Create payload based on mode
+      let payload;
+      
+      if (mode === "existing") {
+        // For existing tickets (AccountantScan)
+        payload = {
+          ticket_ids: Array.isArray(ticketIds) ? ticketIds : [],
+          user_id,
+          description: description.trim(),
+          payments
+        };
+      } else {
+        // For new tickets (CashierSellingPanel)
+        payload = {
+          user_id,
+          description: description.trim(),
+          tickets: selected.map((t) => ({
+            ticket_type_id: parseInt(t.id, 10),
+            quantity: parseInt(ticketCounts[t.id], 10)
+          })),
+          payments
+        };
+      }
+
+      // Add meals if present
+      if (Object.keys(mealCounts).length > 0) {
+        payload.meals = Object.entries(mealCounts).map(([meal_id, quantity]) => {
+          const meal = meals.find((m) => m.id === parseInt(meal_id));
+          return {
+            meal_id: parseInt(meal_id),
+            quantity,
+            price_at_order: meal?.price || 0
+          };
+        });
+      }
+
+      // Use different endpoints based on mode
+      const endpoint = mode === "existing" 
+        ? `${config.apiBaseUrl}/api/tickets/checkout-existing`
+        : `${config.apiBaseUrl}/api/tickets/sell`;
+      
+      const method = mode === "existing" ? "PUT" : "POST";
+      
+      const response = await fetch(endpoint, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -156,54 +240,18 @@ const finalTotal = grossTotal - discountAmount;
         return;
       }
 
-      onCheckout();
+      const responseData = await response.json();
+      
+      onCheckout({...payload, order_id: responseData.order_id});
       setOpen(false);
       setDescription("");
       setSelectedMethods([]);
       setAmounts({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
       setMealCounts({});
     } catch (error) {
+      console.error("Checkout error:", error);
       alert("Network error. Please try again.");
     }
-  };
-
-  const handleSubmit = () => {
-    // Create valid payments array from the selected methods
-    const payments = selectedMethods
-      .filter(method => method !== 'discount')
-      .map(method => ({
-        method,
-        amount: parseFloat((amounts[method] || 0).toFixed(2))
-      }))
-      .filter(p => p.amount > 0);
-    
-    // Create meal items if any
-    const mealItems = Object.entries(mealCounts)
-      .map(([meal_id, quantity]) => {
-        if (quantity <= 0) return null;
-        const meal = meals.find(m => m.id === parseInt(meal_id));
-        return {
-          meal_id: parseInt(meal_id),
-          quantity,
-          price_at_order: meal?.price || 0
-        };
-      })
-      .filter(Boolean);
-    
-    // Create complete payment details object
-    const paymentDetails = {
-      // For backward compatibility with your current implementation
-      paymentMethod: selectedMethods.length > 0 ? selectedMethods[0] : 'cash',
-      totalAmount: finalTotal,
-      // New properties with more complete data
-      payments,
-      meals: mealItems,
-      description: '',  // Add a description field if needed
-      discountAmount: getAmount('discount')
-    };
-    
-    console.log('Submitting payment details:', paymentDetails);
-    onCheckout(paymentDetails);
   };
 
   return (
@@ -211,11 +259,18 @@ const finalTotal = grossTotal - discountAmount;
       <Box mt={4} p={3} border="1px solid #00AEEF" borderRadius={2} bgcolor="#E0F7FF">
         <Typography variant="h6">🧾 Order Summary</Typography>
 
-        {selected.length > 0 &&
+        {Array.isArray(selected) && selected.length > 0 &&
           selected.map((t) => (
-            <Typography key={t.id}>
-              {t.category} - {t.subcategory} × {ticketCounts[t.id]} = EGP{" "}
-              {(ticketCounts[t.id] * t.price).toFixed(2)}
+            <Typography key={t?.id || Math.random()}>
+              {t?.category || 'Unknown'} - {t?.subcategory || 'Unknown'} × {
+                mode === "existing" 
+                  ? 1                  : (ticketCounts[t?.id] || 0)
+              } = EGP{" "}
+              {(
+                mode === "existing" 
+                  ? (t?.price || 0) 
+                  : (ticketCounts[t?.id] || 0) * (t?.price || 0)
+              ).toFixed(2)}
             </Typography>
           ))}
 
@@ -253,7 +308,7 @@ const finalTotal = grossTotal - discountAmount;
               return (
                 <Box key={id} display="flex" alignItems="center" justifyContent="space-between">
                   <Typography>
-                    {meal?.name} × {qty} = EGP {(meal?.price * qty).toFixed(2)}
+                    {meal?.name} × {qty} = EGP {((meal?.price || 0) * qty).toFixed(2)}
                   </Typography>
                   <IconButton onClick={() => handleRemoveMeal(id)} color="error">
                     <DeleteIcon />
@@ -277,7 +332,7 @@ const finalTotal = grossTotal - discountAmount;
           <Button
             variant="contained"
             fullWidth
-            onClick={handleSubmit} 
+            onClick={handleSubmit}
             disabled={!hasItems}
           >
             Checkout
@@ -337,7 +392,7 @@ const finalTotal = grossTotal - discountAmount;
           <Typography
             sx={{
               mt: 2,
-              fontWeight: "bold",
+              fontWeight: "bold", 
               color: Math.abs(remaining) < 0.01 ? "green" : "red"
             }}
           >
@@ -351,7 +406,7 @@ const finalTotal = grossTotal - discountAmount;
           <Button
             onClick={handleConfirm}
             variant="contained"
-            disabled={!hasItems || Math.abs(remaining) > 0.01}
+            disabled={!hasItems || (!postponed && Math.abs(remaining) > 0.01)}
           >
             Confirm
           </Button>

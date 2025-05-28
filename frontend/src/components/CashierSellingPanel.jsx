@@ -81,13 +81,13 @@ const CashierSellingPanel = () => {
             >
               <CheckoutPanel
                 ticketCounts={ticketCounts}
-                types={types}
+                types={types.filter(t => ticketCounts[t.id] > 0)}
                 onCheckout={handleCheckout}
-                onRemoveCategory={handleRemoveCategory}
                 onClear={() => {
                   setTicketCounts({});
                   setSelectedCategories([]);
                 }}
+                mode="new"
               />
             </Box>
           </Box>

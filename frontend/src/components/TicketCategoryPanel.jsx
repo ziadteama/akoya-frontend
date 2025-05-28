@@ -1,62 +1,90 @@
-import React from "react";
-import { Grid, Card, CardActionArea, CardContent, Typography, Box } from "@mui/material";
+import React, { useMemo } from "react";
+import {
+  Box, Typography, List, ListItem, ListItemText, Chip, Paper
+} from "@mui/material";
 
-const TicketCategoryPanel = ({ types, onSelectCategory }) => {
-  const uniqueCategories = [...new Set(types.map((type) => type.category))];
+const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRemoveCategory }) => {
+  // Extract unique categories and track their ticket counts and price ranges
+  const categories = useMemo(() => {
+    const categoriesMap = {};
+    
+    types.forEach(type => {
+      if (!categoriesMap[type.category]) {
+        categoriesMap[type.category] = {
+          name: type.category,
+          count: 0,
+          minPrice: Infinity,
+          maxPrice: -Infinity
+        };
+      }
+      
+      categoriesMap[type.category].count += 1;
+      
+      // Ensure price is a number for comparison
+      const price = Number(type.price || 0);
+      
+      if (price < categoriesMap[type.category].minPrice) {
+        categoriesMap[type.category].minPrice = price;
+      }
+      
+      if (price > categoriesMap[type.category].maxPrice) {
+        categoriesMap[type.category].maxPrice = price;
+      }
+    });
+    
+    return Object.values(categoriesMap);
+  }, [types]);
 
   return (
-    <Box
-      sx={{
-        height: "calc(100vh - 100px)", // adjust based on top bar
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        overflowY: "auto",
-        px: 2,
-      }}
-    >
-      <Typography
-        variant="h6"
-        sx={{
-          fontWeight: "bold",
-          color: "#007EA7",
-          mb: 2,
-          textAlign: "center"
-        }}
-      >
-        Select Ticket Category
-      </Typography>
-
-      <Grid container spacing={2} justifyContent="center">
-        {uniqueCategories.map((category, index) => (
-          <Grid item xs={12} key={index}>
-            <Card
+    <Paper sx={{ p: 3, bgcolor: "#E0F7FF", height: "100%" }}>
+      <Typography variant="h6" sx={{ color: "#00AEEF" }}>Categories</Typography>
+      
+      {selectedCategories.length > 0 && (
+        <Box mt={2} mb={2}>
+          <Typography variant="subtitle2" gutterBottom>Selected:</Typography>
+          <Box display="flex" flexWrap="wrap" gap={1}>
+            {selectedCategories.map((cat) => (
+              <Chip
+                key={cat}
+                label={cat}
+                onDelete={() => onRemoveCategory(cat)}
+                sx={{ bgcolor: "#00AEEF", color: "white" }}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
+      
+      <List sx={{ maxHeight: "calc(100vh - 300px)", overflowY: "auto" }}>
+        {categories.length === 0 ? (
+          <Typography align="center" color="textSecondary" sx={{ p: 2 }}>
+            No categories available
+          </Typography>
+        ) : (
+          categories.map((cat) => (
+            <ListItem
+              button
+              key={cat.name}
+              onClick={() => onSelectCategory(cat.name)}
+              disabled={selectedCategories.includes(cat.name)}
               sx={{
-                backgroundColor: "#F0F9FF",
-                border: "1px solid #00AEEF",
-                borderRadius: "12px",
-                transition: "0.3s",
+                bgcolor: selectedCategories.includes(cat.name) ? "rgba(0, 174, 239, 0.1)" : "white",
+                mb: 1,
+                borderRadius: 1,
                 "&:hover": {
-                  boxShadow: 4,
-                  backgroundColor: "#E0F7FF",
+                  bgcolor: "rgba(0, 174, 239, 0.2)",
                 },
               }}
             >
-              <CardActionArea onClick={() => onSelectCategory(category)}>
-                <CardContent>
-                  <Typography
-                    variant="h6"
-                    sx={{ textAlign: "center", color: "#007EA7" }}
-                  >
-                    {category}
-                  </Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
+              <ListItemText
+                primary={cat.name}
+                secondary={`${cat.count} ticket types • EGP ${cat.minPrice.toFixed(2)} - ${cat.maxPrice.toFixed(2)}`}
+              />
+            </ListItem>
+          ))
+        )}
+      </List>
+    </Paper>
   );
 };
 

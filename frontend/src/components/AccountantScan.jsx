@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box, Typography, TextField, Button, Paper, Snackbar, Alert,
-  ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, IconButton, Dialog, DialogTitle
+  ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, IconButton, Dialog, DialogTitle,
+  Tooltip, Chip
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
 import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
@@ -26,6 +28,9 @@ const AccountantScan = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const listEndRef = useRef(null);
 
+  // Add a loading state
+  const [loading, setLoading] = useState(false);
+
   const showMessage = (text, type = "info") => {
     setMessage({ open: true, text, type });
     if (type === "error") beep();
@@ -39,6 +44,12 @@ const AccountantScan = () => {
       return;
     }
 
+    if (end - start > 100) {
+      showMessage("Range too large (max 100 tickets at once)", "error");
+      return;
+    }
+
+    setLoading(true);
     const newIds = [];
     for (let id = start; id <= end; id++) {
       if (!ticketIds.includes(id)) {
@@ -48,6 +59,7 @@ const AccountantScan = () => {
 
     if (newIds.length === 0) {
       showMessage("No new IDs in this range", "warning");
+      setLoading(false);
       return;
     }
 
@@ -55,20 +67,74 @@ const AccountantScan = () => {
       const responses = await Promise.all(
         newIds.map(id => axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`))
       );
-      const validDetails = responses.map(r => r.data).filter(data => {
-        if (!data.valid) return false;
-        if ((mode === "assign" && (data.status !== "available" || data.ticket_type_id !== null)) ||
-            (mode === "sell" && data.status !== "available")) return false;
-        return true;
-      });
+      
+      // Track invalid tickets for better error reporting
+      const invalidTickets = [];
+      const alreadyAssignedTickets = [];
+      
+      const validDetails = responses.map((r, index) => {
+        const data = r.data;
+        // Check validity conditions
+        if (!data.valid) {
+          invalidTickets.push(data.id || newIds[index]);
+          return null;
+        }
+        
+        if (mode === "assign" && data.status !== "available") {
+          invalidTickets.push(data.id);
+          return null;
+        }
+        
+        if (mode === "assign" && data.ticket_type_id !== null) {
+          alreadyAssignedTickets.push(data.id);
+          return null;
+        }
+        
+        if (mode === "sell" && data.status !== "available") {
+          invalidTickets.push(data.id);
+          return null;
+        }
+        
+        return data;
+      }).filter(Boolean); // Filter out null values
 
-      setTicketIds(prev => [...prev, ...validDetails.map(t => t.id)]);
-      setTicketDetails(prev => [...prev, ...validDetails]);
-      showMessage("Tickets added!", "success");
-      setTimeout(() => listEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      // Show specific errors
+      if (invalidTickets.length > 0) {
+        showMessage(`${invalidTickets.length} invalid or unavailable tickets: ${invalidTickets.slice(0, 5).join(', ')}${invalidTickets.length > 5 ? '...' : ''}`, "warning");
+      }
+      
+      if (alreadyAssignedTickets.length > 0) {
+        showMessage(`${alreadyAssignedTickets.length} tickets already have assigned types: ${alreadyAssignedTickets.slice(0, 5).join(', ')}${alreadyAssignedTickets.length > 5 ? '...' : ''}`, "warning");
+      }
+
+      if (validDetails.length > 0) {
+        setTicketIds(prev => [...prev, ...validDetails.map(t => t.id)]);
+        setTicketDetails(prev => [...prev, ...validDetails]);
+        showMessage(`${validDetails.length} tickets added successfully!`, "success");
+        setTimeout(() => listEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      } else {
+        showMessage("No valid tickets found in this range", "error");
+      }
     } catch (e) {
       showMessage("One or more ticket fetches failed", "error");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Add this function to handle removing a single ticket
+  const handleRemoveTicket = (id) => {
+    setTicketIds(prev => prev.filter(ticketId => ticketId !== id));
+    setTicketDetails(prev => prev.filter(ticket => ticket.id !== id));
+    showMessage("Ticket removed", "info");
+  };
+
+  // Add this function to clear all tickets
+  const handleClearAll = () => {
+    setTicketIds([]);
+    setTicketDetails([]);
+    setTicketCounts({});
+    showMessage("All tickets cleared", "info");
   };
 
   const handleAddTicketId = async () => {
@@ -231,31 +297,77 @@ const AccountantScan = () => {
         <Box display="flex" gap={2} mb={2}>
           <TextField label="From ID" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
           <TextField label="To ID" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
-          <Button variant="outlined" onClick={handleRangeAdd}>Add Range</Button>
+          <Button 
+            variant="outlined" 
+            onClick={handleRangeAdd} 
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Add Range"}
+          </Button>
         </Box>
       )}
 
       <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h6">Ticket IDs: {ticketIds.length}</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h6">
+            Ticket IDs: {ticketIds.length}
+          </Typography>
+          {ticketIds.length > 0 && (
+            <Tooltip title="Clear all tickets">
+              <IconButton color="error" onClick={handleClearAll}>
+                <ClearAllIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+        
         <List>
           {ticketDetails.map((ticket) => (
-            <ListItem key={ticket.id}>
+            <ListItem
+              key={ticket.id}
+              secondaryAction={
+                <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveTicket(ticket.id)}>
+                  <DeleteIcon />
+                </IconButton>
+              }
+            >
               <ListItemText
-                primary={`Ticket ID: ${ticket.id} | ${ticket.category || 'Unassigned'} / ${ticket.subcategory || '-'}`}
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span>Ticket ID: {ticket.id}</span>
+                    <Chip 
+                      label={ticket.category && ticket.subcategory ? `${ticket.category} / ${ticket.subcategory}` : 'Unassigned'} 
+                      size="small"
+                      color={ticket.category ? 'primary' : 'default'}
+                      variant={ticket.category ? 'filled' : 'outlined'}
+                    />
+                  </Box>
+                }
                 secondary={`Created At: ${new Date(ticket.created_at).toLocaleString()}`}
               />
             </ListItem>
           ))}
           <div ref={listEndRef}></div>
         </List>
+        
         {ticketIds.length > 0 && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={mode === "assign" ? () => setSelectorOpen(true) : handleSell}
-          >
-            {mode === "assign" ? "Assign Ticket Types" : "Checkout"}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              onClick={mode === "assign" ? () => setSelectorOpen(true) : handleSell}
+            >
+              {mode === "assign" ? "Assign Ticket Types" : "Checkout"}
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleClearAll}
+            >
+              Clear All
+            </Button>
+          </Box>
         )}
       </Paper>
 

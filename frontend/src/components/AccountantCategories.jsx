@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Typography, Button, IconButton, Box, Fab, Switch, FormControlLabel,
-  Snackbar, Alert
+  Paper, Typography, Button, IconButton, Box, Fab, Switch, FormControlLabel
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
 import config from '../config';
+import { notify, confirmToast } from '../utils/toast';
 
 const AccountantCategories = () => {
   const [categories, setCategories] = useState({});
@@ -15,8 +15,6 @@ const AccountantCategories = () => {
   const [newDescription, setNewDescription] = useState("");
   const [newPrices, setNewPrices] = useState({ child: "", adult: "", grand: "" });
   const [showArchived, setShowArchived] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
   const bottomRef = useRef(null);
 
   useEffect(() => { fetchCategories(); }, [showArchived]);
@@ -39,6 +37,7 @@ const AccountantCategories = () => {
       setCategories(grouped);
     } catch (err) {
       console.error("Error fetching:", err);
+      notify.error("Failed to fetch categories");
     }
   };
 
@@ -61,45 +60,80 @@ const AccountantCategories = () => {
       });
       setEditing(prev => ({ ...prev, [id]: false }));
       fetchCategories();
+      notify.success("Price updated successfully");
     } catch (err) {
       console.error("Error saving:", err);
+      notify.error("Failed to update price");
     }
   };
 
   const handleAddCategory = async () => {
-    if (!newCategory.trim() || !newDescription.trim() || Object.values(newPrices).some(p => !p || Number(p) <= 0)) {
-      return alert("All fields are required and prices must be > 0");
+    // Make description optional, but category and prices required
+    if (!newCategory.trim() || Object.values(newPrices).some(p => !p || Number(p) <= 0)) {
+      notify.warning("Category name and valid prices are required");
+      return;
     }
+    
     try {
+      // Capitalize first letter of category
+      const formattedCategory = newCategory.trim().charAt(0).toUpperCase() + newCategory.trim().slice(1);
+      
+      // Description can be empty
+      const description = newDescription.trim() || ""; 
+      
       await axios.post(`${config.apiBaseUrl}/api/tickets/add-type`, {
         ticketTypes: ["child", "adult", "grand"].map(type => ({
-          category: newCategory,
+          category: formattedCategory,
           subcategory: type,
           price: newPrices[type],
-          description: newDescription,
+          description: description,
         })),
       });
+      
       setNewCategory("");
       setNewDescription("");
       setNewPrices({ child: "", adult: "", grand: "" });
       fetchCategories();
+      notify.success("New category added successfully");
     } catch (err) {
       console.error("Error adding:", err);
+      notify.error("Failed to add new category");
     }
   };
 
   const handleToggleArchive = async (categoryName, archived) => {
-    try {
-      await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, {
-        category: categoryName,
-        archived,
-      });
-      setSnackbarMessage(`${categoryName} ${archived ? "archived" : "unarchived"} successfully.`);
-      setSnackbarOpen(true);
-      fetchCategories();
-    } catch (err) {
-      console.error("Error archiving:", err);
-    }
+    confirmToast(
+      `${archived ? 'Archive' : 'Unarchive'} ${categoryName}?`,
+      async () => {
+        try {
+          await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, {
+            category: categoryName,
+            archived,
+          });
+          notify.success(`${categoryName} ${archived ? "archived" : "unarchived"} successfully.`);
+          fetchCategories();
+        } catch (err) {
+          console.error("Error toggling archive:", err);
+          notify.error(`Failed to ${archived ? "archive" : "unarchive"} ${categoryName}`);
+        }
+      }
+    );
+  };
+  
+  const handleDeleteCategory = (categoryName) => {
+    confirmToast(
+      `Are you sure you want to delete ${categoryName}? This action cannot be undone.`,
+      async () => {
+        try {
+          await axios.delete(`${config.apiBaseUrl}/api/tickets/delete-category/${categoryName}`);
+          notify.success(`${categoryName} deleted successfully`);
+          fetchCategories();
+        } catch (err) {
+          console.error("Error deleting:", err);
+          notify.error(`Failed to delete ${categoryName}`);
+        }
+      }
+    );
   };
 
   const zebraColors = ["#ffffff", "#E0F9FF"];
@@ -147,14 +181,7 @@ const AccountantCategories = () => {
                               variant="outlined"
                               size="small"
                               color={ticket.archived ? "success" : "error"}
-                              onClick={() => {
-                                const confirmMsg = ticket.archived
-                                  ? `Unarchive ${categoryName}?`
-                                  : `Archive ${categoryName}?`;
-                                if (window.confirm(confirmMsg)) {
-                                  handleToggleArchive(categoryName, !ticket.archived);
-                                }
-                              }}
+                              onClick={() => handleToggleArchive(categoryName, !ticket.archived)}
                             >
                               {ticket.archived ? "Unarchive" : "Archive"}
                             </Button>
@@ -199,8 +226,23 @@ const AccountantCategories = () => {
 
       <Paper sx={{ padding: 3, marginTop: 3, backgroundColor: "#E4F8FC" }} ref={bottomRef}>
         <Typography variant="h6" sx={{ color: "#007EA7" }}>Add New Category</Typography>
-        <TextField label="Category Name" fullWidth sx={{ mb: 2 }} value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
-        <TextField label="Description" fullWidth sx={{ mb: 2 }} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
+        <TextField 
+          label="Category Name" 
+          fullWidth 
+          sx={{ mb: 2 }} 
+          value={newCategory} 
+          onChange={(e) => setNewCategory(e.target.value)} 
+          required
+          helperText="First letter will be automatically capitalized"
+        />
+        <TextField 
+          label="Description (Optional)" 
+          fullWidth 
+          sx={{ mb: 2 }} 
+          value={newDescription} 
+          onChange={(e) => setNewDescription(e.target.value)}
+          helperText="Optional field for additional details"
+        />
         <Box display="flex" gap={2} sx={{ mb: 2 }}>
           {Object.entries(newPrices).map(([type, value]) => (
             <TextField
@@ -212,6 +254,7 @@ const AccountantCategories = () => {
               onChange={(e) => setNewPrices((prev) => ({ ...prev, [type]: e.target.value }))}
               size="small"
               sx={{ width: "120px" }}
+              required
             />
           ))}
         </Box>
@@ -223,12 +266,6 @@ const AccountantCategories = () => {
       <Fab color="primary" size="small" sx={{ position: "fixed", bottom: 24, right: 24, backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }} onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}>
         <ArrowDownward />
       </Fab>
-
-      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
-        <Alert severity="success" onClose={() => setSnackbarOpen(false)}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Paper>
   );
 };

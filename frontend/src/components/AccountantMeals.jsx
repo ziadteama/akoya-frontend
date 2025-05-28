@@ -2,12 +2,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Typography, Button, IconButton, Box, Fab, Switch, FormControlLabel,
-  Snackbar, Alert
+  Paper, Typography, Button, IconButton, Box, Fab, Switch, FormControlLabel
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
 import config from '../config';
+import { notify, confirmToast } from '../utils/toast';
 
 const AccountantMeals = () => {
   const [meals, setMeals] = useState([]);
@@ -16,8 +16,6 @@ const AccountantMeals = () => {
   const [newDescription, setNewDescription] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
   const bottomRef = useRef(null);
 
   useEffect(() => { fetchMeals(); }, [showArchived]);
@@ -28,6 +26,7 @@ const AccountantMeals = () => {
       setMeals(data);
     } catch (err) {
       console.error("Error fetching meals:", err);
+      notify.error("Failed to fetch meals");
     }
   };
 
@@ -38,45 +37,62 @@ const AccountantMeals = () => {
   const handleSave = async (id, price) => {
     try {
       await axios.put(`${config.apiBaseUrl}/api/meals/edit`, {
-        meals: [{ id, name: meals.find(m => m.id === id).name, description: meals.find(m => m.id === id).description, price, age_group: meals.find(m => m.id === id).age_group }]
+        meals: [{ 
+          id, 
+          name: meals.find(m => m.id === id).name, 
+          description: meals.find(m => m.id === id).description, 
+          price, 
+          age_group: meals.find(m => m.id === id).age_group 
+        }]
       });
       setEditing(prev => ({ ...prev, [id]: false }));
       fetchMeals();
+      notify.success("Price updated successfully");
     } catch (err) {
       console.error("Error saving:", err);
+      notify.error("Failed to update price");
     }
   };
 
   const handleAddMeal = async () => {
-    if (!newName.trim() || !newDescription.trim() || !newPrice || Number(newPrice) <= 0) {
-      return alert("All fields are required and price must be > 0");
+    // Make name and price required, but description optional
+    if (!newName.trim() || !newPrice || Number(newPrice) <= 0) {
+      notify.warning("Name and valid price are required");
+      return;
     }
+
     try {
+      // Use empty string if description is not provided
+      const description = newDescription.trim() || "";
+      
       await axios.post(`${config.apiBaseUrl}/api/meals/add`, {
         meals: [{
           name: newName,
-          description: newDescription,
+          description: description,
           price: newPrice,
           age_group: "adult"
         }]
       });
+      
       setNewName("");
       setNewDescription("");
       setNewPrice("");
       fetchMeals();
+      notify.success("New meal added successfully");
     } catch (err) {
       console.error("Error adding meals:", err);
+      notify.error("Failed to add new meal");
     }
   };
 
   const handleToggleArchive = async (name, archived) => {
     try {
       await axios.patch(`${config.apiBaseUrl}/api/meals/archive`, { name, archived });
-      setSnackbarMessage(`${name} ${archived ? "archived" : "unarchived"} successfully.`);
-      setSnackbarOpen(true);
+      notify.success(`${name} ${archived ? "archived" : "unarchived"} successfully`);
       fetchMeals();
     } catch (err) {
       console.error("Error archiving:", err);
+      notify.error(`Failed to ${archived ? "archive" : "unarchive"} ${name}`);
     }
   };
 
@@ -121,12 +137,10 @@ const AccountantMeals = () => {
                         size="small"
                         color={meal.archived ? "success" : "error"}
                         onClick={() => {
-                          const confirmMsg = meal.archived
-                            ? `Unarchive ${meal.name}?`
-                            : `Archive ${meal.name}?`;
-                          if (window.confirm(confirmMsg)) {
-                            handleToggleArchive(meal.name, !meal.archived);
-                          }
+                          confirmToast(
+                            `${meal.archived ? "Unarchive" : "Archive"} ${meal.name}?`,
+                            () => handleToggleArchive(meal.name, !meal.archived)
+                          );
                         }}
                       >
                         {meal.archived ? "Unarchive" : "Archive"}
@@ -134,7 +148,7 @@ const AccountantMeals = () => {
                     </Box>
                   </TableCell>
                   <TableCell align="center">{meal.age_group}</TableCell>
-                  <TableCell align="center">{meal.description}</TableCell>
+                  <TableCell align="center">{meal.description || "-"}</TableCell>
                   <TableCell align="center">
                     {editing[meal.id] ? (
                       <TextField
@@ -169,8 +183,22 @@ const AccountantMeals = () => {
 
       <Paper sx={{ padding: 3, marginTop: 3, backgroundColor: "#E4F8FC" }} ref={bottomRef}>
         <Typography variant="h6" sx={{ color: "#007EA7" }}>Add New Meal</Typography>
-        <TextField label="Meal Name" fullWidth sx={{ mb: 2 }} value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <TextField label="Description" fullWidth sx={{ mb: 2 }} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
+        <TextField 
+          label="Meal Name" 
+          fullWidth 
+          sx={{ mb: 2 }} 
+          value={newName} 
+          onChange={(e) => setNewName(e.target.value)} 
+          required
+        />
+        <TextField 
+          label="Description (Optional)" 
+          fullWidth 
+          sx={{ mb: 2 }} 
+          value={newDescription} 
+          onChange={(e) => setNewDescription(e.target.value)}
+          helperText="Optional field for additional details"
+        />
         <TextField
           label="Price"
           fullWidth
@@ -179,6 +207,7 @@ const AccountantMeals = () => {
           value={newPrice}
           onChange={(e) => setNewPrice(e.target.value)}
           sx={{ mb: 2 }}
+          required
         />
         <Button variant="contained" startIcon={<Add />} onClick={handleAddMeal} sx={{ backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }}>
           Add Meal
@@ -188,12 +217,6 @@ const AccountantMeals = () => {
       <Fab color="primary" size="small" sx={{ position: "fixed", bottom: 24, right: 24, backgroundColor: "#00AEEF", "&:hover": { backgroundColor: "#00C2CB" } }} onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}>
         <ArrowDownward />
       </Fab>
-
-      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
-        <Alert severity="success" onClose={() => setSnackbarOpen(false)}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Paper>
   );
 };

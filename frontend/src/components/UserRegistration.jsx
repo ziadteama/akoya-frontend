@@ -9,12 +9,11 @@ import {
   MenuItem,
   Typography,
   Paper,
-  Alert,
-  Snackbar,
   CircularProgress
 } from "@mui/material";
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import config from '../config';
+import { notify } from '../utils/toast';
 
 const UserRegistration = () => {
   const [formData, setFormData] = useState({
@@ -26,7 +25,6 @@ const UserRegistration = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState("");
   const [token, setToken] = useState("");
 
@@ -36,6 +34,10 @@ const UserRegistration = () => {
     const authToken = localStorage.getItem("authToken");
     setCurrentUserRole(role || "");
     setToken(authToken || "");
+    
+    if (!authToken) {
+      notify.warning("Authentication required. Please log out and log back in.");
+    }
   }, []);
 
   const handleChange = (e) => {
@@ -51,32 +53,38 @@ const UserRegistration = () => {
   const validateForm = () => {
     if (!formData.name.trim()) {
       setError("Name is required");
+      notify.error("Name is required");
       return false;
     }
     
     if (!formData.username.trim()) {
       setError("Username is required");
+      notify.error("Username is required");
       return false;
     }
     
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters");
+      notify.error("Password must be at least 6 characters");
       return false;
     }
     
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
+      notify.error("Passwords do not match");
       return false;
     }
     
     if (!formData.role) {
       setError("Role is required");
+      notify.error("Role is required");
       return false;
     }
     
     // Make sure accountants can't create admin accounts
     if (currentUserRole === "accountant" && formData.role === "admin") {
       setError("You don't have permission to create admin accounts");
+      notify.error("You don't have permission to create admin accounts");
       return false;
     }
     
@@ -91,6 +99,7 @@ const UserRegistration = () => {
     // Check if token exists
     if (!token) {
       setError("Authentication token not found. Please log in again.");
+      notify.error("Authentication token not found. Please log in again.");
       return;
     }
     
@@ -121,7 +130,8 @@ const UserRegistration = () => {
       
       const data = await response.json();
       
-      setSuccess(true);
+      // Show success message
+      notify.success("User registered successfully!");
       
       // Reset form
       setFormData({
@@ -136,18 +146,16 @@ const UserRegistration = () => {
       
       if (error.message.includes("Authentication")) {
         setError("Authentication error. Please log in again.");
+        notify.error("Authentication error. Please log in again.");
         // Clear token as it might be invalid
         localStorage.removeItem("authToken");
       } else {
         setError(error.message || "Failed to register user. Please try again.");
+        notify.error(error.message || "Failed to register user. Please try again.");
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseSnackbar = () => {
-    setSuccess(false);
   };
 
   // Function to get available roles based on current user's role
@@ -187,15 +195,35 @@ const UserRegistration = () => {
       </Box>
 
       {!token && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Authentication required. Please log out and log back in.
-        </Alert>
+        <Box 
+          sx={{
+            py: 1.5,
+            px: 2,
+            mb: 3,
+            borderRadius: 1,
+            bgcolor: "rgba(255, 152, 0, 0.1)",
+            border: "1px solid rgba(255, 152, 0, 0.3)",
+            color: "warning.dark",
+          }}
+        >
+          <Typography>Authentication required. Please log out and log back in.</Typography>
+        </Box>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+        <Box 
+          sx={{
+            py: 1.5,
+            px: 2,
+            mb: 3,
+            borderRadius: 1,
+            bgcolor: "rgba(211, 47, 47, 0.1)",
+            border: "1px solid rgba(211, 47, 47, 0.3)",
+            color: "error.main",
+          }}
+        >
+          <Typography>{error}</Typography>
+        </Box>
       )}
 
       <Box component="form" onSubmit={handleSubmit} noValidate>
@@ -286,17 +314,6 @@ const UserRegistration = () => {
           {loading ? <CircularProgress size={24} /> : "Register User"}
         </Button>
       </Box>
-
-      <Snackbar
-        open={success}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: "100%" }}>
-          User registered successfully!
-        </Alert>
-      </Snackbar>
     </Paper>
   );
 };

@@ -6,7 +6,6 @@ import {
   TextField,
   Typography,
   Paper,
-  Alert,
   InputAdornment,
   IconButton,
   CircularProgress
@@ -14,6 +13,7 @@ import {
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import WavesIcon from "@mui/icons-material/Waves";
 import config from '../config';
+import { notify } from '../utils/toast';
 
 const SignIn = () => {
   // State management
@@ -22,7 +22,6 @@ const SignIn = () => {
     password: ""
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState(true); // Assume server is up initially
   
@@ -35,8 +34,6 @@ const SignIn = () => {
       ...prev,
       [name]: value
     }));
-    // Clear errors when user starts typing again
-    if (error) setError("");
   };
 
   // Toggle password visibility
@@ -50,11 +47,10 @@ const SignIn = () => {
     
     // Basic validation
     if (!formData.username.trim() || !formData.password) {
-      setError("Username and password are required");
+      notify.error("Username and password are required");
       return;
     }
     
-    setError("");
     setLoading(true);
 
     try {
@@ -107,22 +103,26 @@ const SignIn = () => {
           localStorage.setItem("authToken", data.token);
         }
         
+        // Show success message
+        notify.success(`Welcome back, ${data.name}!`);
+        
+        // Redirect to the appropriate dashboard
         redirectToDashboard(data.role);
       } else {
-        setError(data.message || "Invalid credentials");
+        notify.error(data.message || "Invalid credentials");
       }
     } catch (error) {
       console.error("Login error:", error);
       
       // Provide more specific error messages based on the error type
       if (error.name === "AbortError") {
-        setError("Request timed out. Please try again.");
+        notify.error("Request timed out. Please try again.");
         setServerStatus(false);
       } else if (error.name === "TypeError" && error.message.includes("Failed to fetch")) {
-        setError("Cannot connect to server. Please ensure the server is running.");
+        notify.error("Cannot connect to server. Please ensure the server is running.");
         setServerStatus(false);
       } else {
-        setError(error.message || "Login failed. Please try again.");
+        notify.error(error.message || "Login failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -142,7 +142,7 @@ const SignIn = () => {
         navigate("/cashier");
         break;
       default:
-        setError("Unauthorized role");
+        notify.error("Unauthorized role");
     }
   };
 
@@ -262,29 +262,21 @@ const SignIn = () => {
         </Box>
         
         {!serverStatus && (
-          <Alert 
-            severity="warning" 
-            sx={{ 
+          <Box 
+            sx={{
+              py: 1.5,
+              px: 2,
               mb: 2,
               borderRadius: 2,
-              fontSize: "0.9rem"
+              bgcolor: "rgba(255, 152, 0, 0.1)",
+              border: "1px solid rgba(255, 152, 0, 0.3)",
+              color: "warning.dark",
+              fontSize: "0.9rem",
+              textAlign: "center"
             }}
           >
             Server connection issue. Please ensure the server is running.
-          </Alert>
-        )}
-        
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mb: 2,
-              borderRadius: 2,
-              fontSize: "0.9rem"
-            }}
-          >
-            {error}
-          </Alert>
+          </Box>
         )}
         
         <Box component="form" onSubmit={handleLogin} noValidate>

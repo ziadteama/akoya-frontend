@@ -23,8 +23,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Snackbar,
-  Alert,
   CircularProgress,
   Accordion,
   AccordionSummary,
@@ -44,6 +42,8 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import axios from 'axios';
+import config from '../config';
+import { notify, confirmToast } from '../utils/toast';
 
 // Icons
 import SearchIcon from '@mui/icons-material/Search';
@@ -93,13 +93,6 @@ const OrdersManagement = () => {
   const [availableTicketTypes, setAvailableTicketTypes] = useState([]);
   const [availableMeals, setAvailableMeals] = useState([]);
   
-  // Notification
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
-
   // Tab state for edit dialog
   const [editTab, setEditTab] = useState(0);
 
@@ -124,6 +117,7 @@ const OrdersManagement = () => {
       
       if (!token) {
         setError('Authentication required. Please log in again.');
+        notify.error('Authentication required. Please log in again.');
         setLoading(false);
         return;
       }
@@ -133,7 +127,7 @@ const OrdersManagement = () => {
         endDate: toDate.format('YYYY-MM-DD')
       };
       
-      const response = await axios.get('http://localhost:3000/api/orders/range-report', { 
+      const response = await axios.get(`${config.apiBaseUrl}/api/orders/range-report`, { 
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -144,11 +138,13 @@ const OrdersManagement = () => {
         setOrders(response.data);
       } else {
         setError('Unexpected data format received');
+        notify.error('Unexpected data format received');
         setOrders([]);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
       setError('Failed to fetch orders. Please try again.');
+      notify.error('Failed to fetch orders. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -732,7 +728,7 @@ const OrdersManagement = () => {
     console.log(`Recalculated: Gross=${grossTotal.toFixed(2)}, Net=${totalAmount.toFixed(2)}, Discount=${discountAmount.toFixed(2)}`);
   };
   
-  // Update the validatePaymentTotal to handle discounts correctly
+  // Update the validatePaymentTotal to show warning toast for invalid payments
   const validatePaymentTotal = () => {
     if (!editableOrder || !editableOrder.payments) return false;
     
@@ -966,13 +962,9 @@ const OrdersManagement = () => {
       // Force recalculation to ensure everything is in sync
       recalculateOrderTotal();
       
-      // Validate payment total matches order total with a short delay to ensure state is updated
+      // Validate payment total matches order total
       if (!validatePaymentTotal()) {
-        setNotification({
-          open: true,
-          message: 'Payment total must match order total - please adjust payment amounts',
-          severity: 'error'
-        });
+        notify.error('Payment total must match order total - please adjust payment amounts');
         return;
       }
       
@@ -980,11 +972,7 @@ const OrdersManagement = () => {
       const token = localStorage.getItem('authToken');
       
       if (!token) {
-        setNotification({
-          open: true,
-          message: 'Authentication required. Please log in again.',
-          severity: 'error'
-        });
+        notify.error('Authentication required. Please log in again.');
         setLoading(false);
         return;
       }
@@ -1024,7 +1012,7 @@ const OrdersManagement = () => {
             quantity: Number(meal.quantity)
           }))
         : [];
-      
+    
       // Build the update payload
       const updatePayload = {
         order_id: selectedOrder.order_id,
@@ -1039,7 +1027,7 @@ const OrdersManagement = () => {
       
       // Send the update request
       const response = await axios.put(
-        'http://localhost:3000/api/orders/update',
+        `${config.apiBaseUrl}/api/orders/update`,
         updatePayload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -1048,21 +1036,13 @@ const OrdersManagement = () => {
       
       // Close dialog and show success message
       handleCloseEditDialog();
-      setNotification({
-        open: true,
-        message: 'Order updated successfully',
-        severity: 'success'
-      });
+      notify.success('Order updated successfully');
       
       // Refresh orders list
       fetchOrders();
     } catch (error) {
       console.error('Error updating order:', error.response?.data || error);
-      setNotification({
-        open: true,
-        message: error.response?.data?.message || 'Failed to update order',
-        severity: 'error'
-      });
+      notify.error(error.response?.data?.message || 'Failed to update order');
     } finally {
       setLoading(false);
     }
@@ -1087,11 +1067,6 @@ const OrdersManagement = () => {
     return searchMatch;
   });
 
-  // Notification handler
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
-  };
-  
   // Format currency for display
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', { 
@@ -1626,23 +1601,6 @@ const OrdersManagement = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {/* Notification */}
-        <Snackbar
-          open={notification.open}
-          autoHideDuration={6000}
-          onClose={handleCloseNotification}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Alert
-            onClose={handleCloseNotification}
-            severity={notification.severity}
-            variant="filled"
-            sx={{ width: '100%' }}
-          >
-            {notification.message}
-          </Alert>
-        </Snackbar>
       </Box>
     </LocalizationProvider>
   );

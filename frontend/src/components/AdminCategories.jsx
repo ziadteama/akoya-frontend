@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Box, Paper, Typography, Button, IconButton, TextField, Table, 
   TableBody, TableCell, TableContainer, TableHead, TableRow, 
-  Switch, FormControlLabel, Snackbar, Alert, Grid, CircularProgress,
+  Switch, FormControlLabel, Grid, CircularProgress,
   Chip, Divider
 } from "@mui/material";
 import axios from "axios";
@@ -16,6 +16,7 @@ import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import config from '../config';
+import { notify, confirmToast } from '../utils/toast';
 
 const AdminCategories = () => {
   // State for categories data
@@ -30,13 +31,6 @@ const AdminCategories = () => {
   const [newDescription, setNewDescription] = useState("");
   const [newPrices, setNewPrices] = useState({ child: "", adult: "", grand: "" });
   
-  // Notification state
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
-
   // Fetch categories on component mount and when showArchived changes
   useEffect(() => {
     fetchCategories();
@@ -52,6 +46,7 @@ const AdminCategories = () => {
       
       if (!token) {
         setError('Authentication required. Please log in again.');
+        notify.error('Authentication required. Please log in again.');
         setLoading(false);
         return;
       }
@@ -82,6 +77,7 @@ const AdminCategories = () => {
     } catch (error) {
       console.error('Error fetching categories:', error);
       setError('Failed to fetch ticket categories. Please try again.');
+      notify.error('Failed to fetch ticket categories. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,20 +108,11 @@ const AdminCategories = () => {
       
       setEditing(prev => ({ ...prev, [id]: false }));
       
-      setNotification({
-        open: true,
-        message: 'Price updated successfully',
-        severity: 'success'
-      });
-      
+      notify.success('Price updated successfully');
       fetchCategories();
     } catch (error) {
       console.error('Error saving price:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to update price',
-        severity: 'error'
-      });
+      notify.error('Failed to update price');
     }
   };
 
@@ -134,11 +121,7 @@ const AdminCategories = () => {
     // Validate inputs
     if (!newCategory.trim() || !newDescription.trim() || 
         Object.values(newPrices).some(p => !p || Number(p) <= 0)) {
-      setNotification({
-        open: true,
-        message: 'All fields are required and prices must be greater than 0',
-        severity: 'error'
-      });
+      notify.error('All fields are required and prices must be greater than 0');
       return;
     }
     
@@ -162,21 +145,13 @@ const AdminCategories = () => {
       setNewDescription("");
       setNewPrices({ child: "", adult: "", grand: "" });
       
-      setNotification({
-        open: true,
-        message: 'Category added successfully',
-        severity: 'success'
-      });
+      notify.success('Category added successfully');
       
       // Refresh categories list
       fetchCategories();
     } catch (error) {
       console.error('Error adding category:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to add category',
-        severity: 'error'
-      });
+      notify.error('Failed to add category');
     }
   };
 
@@ -190,27 +165,14 @@ const AdminCategories = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setNotification({
-        open: true,
-        message: `${categoryName} ${archived ? 'archived' : 'unarchived'} successfully`,
-        severity: 'success'
-      });
+      notify.success(`${categoryName} ${archived ? 'archived' : 'unarchived'} successfully`);
       
       // Refresh categories list
       fetchCategories();
     } catch (error) {
       console.error('Error toggling archive status:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to update category archive status',
-        severity: 'error'
-      });
+      notify.error('Failed to update category archive status');
     }
-  };
-
-  // Close notification
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
   };
 
   return (
@@ -325,9 +287,10 @@ const AdminCategories = () => {
                                     const confirmMsg = ticket.archived
                                       ? `This will make "${categoryName}" tickets available again. Continue?`
                                       : `This will hide "${categoryName}" tickets from new orders. Continue?`;
-                                    if (window.confirm(confirmMsg)) {
+                                    
+                                    confirmToast(confirmMsg, () => {
                                       handleToggleArchive(categoryName, !ticket.archived);
-                                    }
+                                    });
                                   }}
                                 >
                                   {ticket.archived ? (
@@ -482,23 +445,6 @@ const AdminCategories = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Notification */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={handleCloseNotification}
-          severity={notification.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

@@ -14,8 +14,6 @@ import {
   TextField,
   Switch,
   FormControlLabel,
-  Snackbar,
-  Alert,
   CircularProgress,
   Divider,
   Card,
@@ -36,6 +34,7 @@ import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import config from '../config';
+import { notify, confirmToast } from '../utils/toast';
 
 const AdminMeals = () => {
   const [meals, setMeals] = useState([]);
@@ -52,13 +51,6 @@ const AdminMeals = () => {
     age_group: 'adult' // Keep the default value but will hide the input
   });
   
-  // Notification
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
-
   // Save original meal values for comparison
   const [originalMeals, setOriginalMeals] = useState({});
 
@@ -77,6 +69,7 @@ const AdminMeals = () => {
       
       if (!token) {
         setError('Authentication required. Please log in again.');
+        notify.error('Authentication required. Please log in again.');
         setLoading(false);
         return;
       }
@@ -97,11 +90,13 @@ const AdminMeals = () => {
         setOriginalMeals(originals);
       } else {
         setError('Unexpected data format received');
+        notify.error('Unexpected data format received');
         setMeals([]);
       }
     } catch (error) {
       console.error('Error fetching meals:', error);
       setError('Failed to fetch meals. Please try again.');
+      notify.error('Failed to fetch meals. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -152,19 +147,14 @@ const AdminMeals = () => {
           parseFloat(originalMeal.price) === parseFloat(mealToUpdate.price)) {
         // No changes detected, just exit edit mode without API call
         setEditing(prev => ({ ...prev, [id]: false }));
-        
-        setNotification({
-          open: true,
-          message: 'No changes detected',
-          severity: 'info'
-        });
+        notify.info('No changes detected');
         return;
       }
       
       const token = localStorage.getItem('authToken');
       
       await axios.put(
-        'http://localhost:3000/api/meals/edit',
+        `${config.apiBaseUrl}/api/meals/edit`,
         {
           meals: [{
             id,
@@ -178,12 +168,7 @@ const AdminMeals = () => {
       );
       
       setEditing(prev => ({ ...prev, [id]: false }));
-      
-      setNotification({
-        open: true,
-        message: 'Meal updated successfully',
-        severity: 'success'
-      });
+      notify.success('Meal updated successfully');
       
       // Update our stored original after successful update
       setOriginalMeals(prev => ({
@@ -194,11 +179,7 @@ const AdminMeals = () => {
       fetchMeals();
     } catch (error) {
       console.error('Error saving meal:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to update meal',
-        severity: 'error'
-      });
+      notify.error('Failed to update meal');
     }
   };
 
@@ -206,11 +187,7 @@ const AdminMeals = () => {
   const handleAddMeal = async () => {
     // Validate inputs
     if (!newMeal.name.trim() || !newMeal.description.trim() || !newMeal.price || Number(newMeal.price) <= 0) {
-      setNotification({
-        open: true,
-        message: 'All fields are required and price must be greater than 0',
-        severity: 'error'
-      });
+      notify.error('All fields are required and price must be greater than 0');
       return;
     }
     
@@ -218,7 +195,7 @@ const AdminMeals = () => {
       const token = localStorage.getItem('authToken');
       
       await axios.post(
-        'http://localhost:3000/api/meals/add',
+        `${config.apiBaseUrl}/api/meals/add`,
         {
           meals: [{
             name: newMeal.name,
@@ -238,21 +215,13 @@ const AdminMeals = () => {
         age_group: 'adult'
       });
       
-      setNotification({
-        open: true,
-        message: 'Meal added successfully',
-        severity: 'success'
-      });
+      notify.success('Meal added successfully');
       
       // Refresh meals list
       fetchMeals();
     } catch (error) {
       console.error('Error adding meal:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to add meal',
-        severity: 'error'
-      });
+      notify.error('Failed to add meal');
     }
   };
 
@@ -262,32 +231,19 @@ const AdminMeals = () => {
       const token = localStorage.getItem('authToken');
       
       await axios.patch(
-        'http://localhost:3000/api/meals/archive',
+        `${config.apiBaseUrl}/api/meals/archive`,
         { name, archived },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setNotification({
-        open: true,
-        message: `${name} ${archived ? 'archived' : 'unarchived'} successfully`,
-        severity: 'success'
-      });
+      notify.success(`${name} ${archived ? 'archived' : 'unarchived'} successfully`);
       
       // Refresh meals list
       fetchMeals();
     } catch (error) {
       console.error('Error toggling archive status:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to update meal archive status',
-        severity: 'error'
-      });
+      notify.error('Failed to update meal archive status');
     }
-  };
-
-  // Close notification
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
   };
 
   // Format currency for display
@@ -418,9 +374,10 @@ const AdminMeals = () => {
                             const confirmMsg = meal.archived
                               ? `Unarchive ${meal.name}?`
                               : `Archive ${meal.name}?`;
-                            if (window.confirm(confirmMsg)) {
+                            
+                            confirmToast(confirmMsg, () => {
                               handleToggleArchive(meal.name, !meal.archived);
-                            }
+                            });
                           }}
                         >
                           {meal.archived ? <UnarchiveIcon /> : <ArchiveIcon />}
@@ -481,23 +438,6 @@ const AdminMeals = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Notification */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={handleCloseNotification}
-          severity={notification.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

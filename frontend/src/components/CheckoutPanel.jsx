@@ -276,19 +276,25 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       }
 
       // Structure payments data
-      const payments = selectedMethods
+      const payments = [];
+
+      // Add regular payment methods
+      selectedMethods
         .filter(method => method !== 'discount' && getAmount(method) > 0)
-        .map(method => ({
-          method,
-          amount: parseFloat(getAmount(method).toFixed(2))
-        }));
-      
-      // Add discount as a separate payment with negative amount if present
+        .forEach(method => {
+          payments.push({
+            method,
+            amount: parseFloat(getAmount(method).toFixed(2))
+          });
+        });
+
+      // Add discount as a separate payment if present
       if (discountAmount > 0) {
         payments.push({
           method: "discount",
           amount: parseFloat(discountAmount.toFixed(2))
         });
+        console.log(`Applied discount: EGP ${discountAmount.toFixed(2)}`);
       }
 
       // Create the appropriate payload based on mode
@@ -374,6 +380,18 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         sx={{ flexBasis: "calc(50% - 8px)", flexGrow: 1, mb: 1 }}
       />
     );
+  };
+
+  // 1. Add this validateDiscount function after your component constants
+  const validateDiscount = (value) => {
+    // Convert input to number, default to 0 if empty/invalid
+    const inputValue = value === '' ? 0 : Number(value);
+    
+    // Ensure discount doesn't exceed the subtotal
+    const subtotal = ticketTotal + mealTotal;
+    const validDiscount = Math.min(Math.max(0, inputValue), subtotal);
+    
+    return validDiscount;
   };
 
   return (
@@ -706,12 +724,19 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             <TextField
               label="Discount Amount"
               type="number"
-              inputProps={{ step: "any", min: 0 }}
+              inputProps={{ 
+                step: "any", 
+                min: 0,
+                max: ticketTotal + mealTotal
+              }}
               value={getAmount('discount')}
-              onChange={(e) => setAmount('discount', e.target.value)}
+              onChange={(e) => {
+                const validDiscount = validateDiscount(e.target.value);
+                setAmount('discount', validDiscount);
+              }}
               fullWidth
               sx={{ mt: 2, mb: 1 }}
-              helperText="Enter the discount amount to be applied"
+              helperText={`Enter discount amount (max: EGP ${(ticketTotal + mealTotal).toFixed(2)})`}
             />
           )}
           

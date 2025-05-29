@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Box, Grid } from "@mui/material";
 import axios from "axios";
 import TicketCategoryPanel from "../components/TicketCategoryPanel";
 import TicketSelectorPanel from "../components/TicketSelectorPanel";
 import CheckoutPanel from "../components/CheckoutPanel";
-import config from '../config'; // Update path as needed
+// Remove config import
+// import config from '../config'; // Update path as needed
 import { notify } from '../utils/toast';
 
 const CashierSellingPanel = () => {
@@ -16,7 +17,7 @@ const CashierSellingPanel = () => {
   useEffect(() => {
     const fetchTicketTypes = async () => {
       try {
-        const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types?archived=false`);
+        const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types?archived=false`);
         
         // Ensure all prices are valid numbers
         const typesWithValidPrices = data.map(type => ({
@@ -52,6 +53,8 @@ const CashierSellingPanel = () => {
   const handleRemoveCategory = (category) => {
     setSelectedCategories((prev) => prev.filter((c) => c !== category));
     const updatedCounts = { ...ticketCounts };
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
     types
       .filter((t) => t.category === category)
       .forEach((t) => delete updatedCounts[t.id]);
@@ -60,8 +63,12 @@ const CashierSellingPanel = () => {
 
   const handleTicketCountChange = (typeId, value) => {
     const count = parseInt(value);
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
     if (count <= 0) {
       const updatedCounts = { ...ticketCounts };
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       delete updatedCounts[typeId];
       setTicketCounts(updatedCounts);
     } else {
@@ -71,7 +78,9 @@ const CashierSellingPanel = () => {
 
   const handleCheckout = async (checkoutData) => {
     try {
-      const response = await axios.post(`${config.apiBaseUrl}/api/tickets/sell`, checkoutData);
+      const response = await axios.post(`${baseUrl}/api/tickets/sell`, checkoutData);
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       notify.success(`Order completed successfully! Order #${response.data.order_id || 'Created'}`);
       
@@ -122,3 +131,4 @@ const CashierSellingPanel = () => {
 };
 
 export default CashierSellingPanel;
+

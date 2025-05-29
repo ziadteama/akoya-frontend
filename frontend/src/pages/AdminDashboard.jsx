@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Box, Container, Grid, Paper, Typography, Card, CardContent, 
   Tab, Tabs, IconButton, Menu, MenuItem, Chip, CircularProgress, Divider, 
   useTheme, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, 
@@ -43,7 +43,8 @@ import DateRangeIcon from '@mui/icons-material/DateRange';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import PrintIcon from '@mui/icons-material/Print';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 
 const drawerWidth = 240;
 
@@ -123,7 +124,10 @@ const StatsCard = ({ icon, title, value, color, secondaryValue }) => {
 
 const AdminDashboard = () => {
   const theme = useTheme();
-  const navigate = useNavigate(); // Add this
+  const navigate = useNavigate();
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
@@ -157,6 +161,12 @@ const AdminDashboard = () => {
 
   // Fetch data using the API like in AccountantReports
   const fetchData = async () => {
+    if (!baseUrl) {
+      setError("API configuration not available");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -168,7 +178,8 @@ const AdminDashboard = () => {
       
       console.log("Fetching data with params:", params); // Debug log
       
-      const response = await axios.get(`${config.apiBaseUrl}/api/orders/range-report`, { params });
+      const response = await axios.get(`${baseUrl}/api/orders/range-report`, { params });
+      
       console.log("API response:", response); // Debug log
       
       // The data is directly in response.data (not in response.data.items)
@@ -254,7 +265,7 @@ const AdminDashboard = () => {
   // Fetch data on component mount and when date range changes
   useEffect(() => {
     fetchData();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, baseUrl]);
 
   // Handle drawer toggle
   const handleDrawerToggle = () => {
@@ -344,6 +355,7 @@ const AdminDashboard = () => {
     
     orders.forEach(order => {
       const date = new Date(order.created_at).toLocaleDateString();
+
       if (!revenueByDate[date]) {
         revenueByDate[date] = 0;
       }
@@ -896,3 +908,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import {
   Box, Typography, TextField, Button, Paper, 
   ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, IconButton, Dialog, DialogTitle,
@@ -14,7 +14,9 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
-import config from '../../../config';
+// Remove config // Remove config import
+// import
+// import config from '../../../config';
 import ErrorBoundary from './ErrorBoundary';
 import { notify, confirmToast } from '../utils/toast';
 
@@ -42,6 +44,8 @@ const AccountantScan = () => {
   // Add a loading state
   const [loading, setLoading] = useState(false);
 
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   // Replace showMessage with notify
   const showMessage = (text, type = "info") => {
     if (type === "success") notify.success(text);
@@ -54,6 +58,11 @@ const AccountantScan = () => {
   };
 
   const handleRangeAdd = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+
     const start = parseInt(from);
     const end = parseInt(to);
     if (isNaN(start) || isNaN(end) || start > end) {
@@ -82,7 +91,7 @@ const AccountantScan = () => {
 
     try {
       const responses = await Promise.all(
-        newIds.map(id => axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`))
+        newIds.map(id => axios.get(`${baseUrl}/api/tickets/ticket/${id}`))
       );
       
       // Track invalid tickets for better error reporting
@@ -158,6 +167,11 @@ const AccountantScan = () => {
 
   // Update the handleAddTicketId function to check for assigned tickets
   const handleAddTicketId = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+
     const id = parseInt(input.trim(), 10);
     if (!id || isNaN(id)) return;
 
@@ -167,7 +181,7 @@ const AccountantScan = () => {
     }
 
     try {
-      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`);
+      const { data } = await axios.get(`${baseUrl}/api/tickets/ticket/${id}`);
       // Log the response to check if price is included
       console.log("Ticket data from API:", data);
       
@@ -205,8 +219,12 @@ const AccountantScan = () => {
   };
 
   // Update the handleValidateTicket function to prevent errors
-
   const handleValidateTicket = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+
     const id = parseInt(validateInput.trim(), 10);
     if (!id || isNaN(id)) {
       notify.warning("Please enter a valid ticket ID");
@@ -216,7 +234,7 @@ const AccountantScan = () => {
     try {
       setLoading(true);
       
-      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`);
+      const { data } = await axios.get(`${baseUrl}/api/tickets/ticket/${id}`);
       console.log("Validation data:", data);
       
       // Check if data exists before proceeding
@@ -286,6 +304,11 @@ const AccountantScan = () => {
   };
 
   const handleAssign = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+
     const totalAssigned = Object.values(ticketCounts).reduce((sum, v) => sum + parseInt(v || 0), 0);
     if (totalAssigned !== ticketIds.length) {
       notify.error("Assigned count must match number of added ticket IDs");
@@ -302,7 +325,7 @@ const AccountantScan = () => {
     }
 
     try {
-      await axios.patch(`${config.apiBaseUrl}/api/tickets/tickets/assign-types`, { assignments });
+      await axios.patch(`${baseUrl}/api/tickets/tickets/assign-types`, { assignments });
       notify.success("Tickets assigned!");
       setTicketIds([]);
       setTicketDetails([]);
@@ -316,6 +339,11 @@ const AccountantScan = () => {
   const handleSell = () => setCheckoutOpen(true);
 
   const handleCheckoutSubmit = async (checkoutData) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+
     try {
       // Extract payment information from the checkout data passed from CheckoutPanel
       const payments = checkoutData.payments || [];
@@ -345,7 +373,7 @@ const AccountantScan = () => {
       }
       
       const response = await axios.put(
-        `${config.apiBaseUrl}/api/tickets/checkout-existing`, 
+        `${baseUrl}/api/tickets/checkout-existing`, 
         payload
       );
       
@@ -360,10 +388,12 @@ const AccountantScan = () => {
   };
 
   useEffect(() => {
-    axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types?archived=false`)
+    if (!baseUrl) return;
+    
+    axios.get(`${baseUrl}/api/tickets/ticket-types?archived=false`)
       .then((res) => Array.isArray(res.data) && setTypes(res.data))
       .catch(() => notify.error("Failed to fetch ticket types"));
-  }, []);
+  }, [baseUrl]);
 
   const groupedTypes = types.reduce((acc, type) => {
     if (!acc[type.category]) acc[type.category] = [];
@@ -779,3 +809,4 @@ const AccountantScan = () => {
 };
 
 export default AccountantScan;
+

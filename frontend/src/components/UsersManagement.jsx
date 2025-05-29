@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -38,7 +38,8 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import KeyIcon from '@mui/icons-material/Key';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -91,6 +92,8 @@ const UsersManagement = () => {
     try {
       // Get JWT token from localStorage - use authToken instead of token
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       if (!token) {
         setError('You must be logged in to access this page.');
@@ -215,7 +218,9 @@ const UsersManagement = () => {
     }
     
     try {
-      const token = localStorage.getItem('authToken'); // FIXED: using authToken
+      const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl; // FIXED: using authToken
       
       if (!token) {
         showNotification('Authentication required. Please log in again.', 'error');
@@ -244,7 +249,9 @@ const UsersManagement = () => {
     }
     
     try {
-      const token = localStorage.getItem('authToken'); // FIXED: using authToken
+      const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl; // FIXED: using authToken
       
       if (!token) {
         showNotification('Authentication required. Please log in again.', 'error');
@@ -262,7 +269,7 @@ const UsersManagement = () => {
       }
       
       await axios.put(
-        `${config.apiBaseUrl}/api/users/${selectedUser.id}`,
+        `${baseUrl}/api/users/${selectedUser.id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -278,14 +285,16 @@ const UsersManagement = () => {
 
   const handleDeleteUser = async () => {
     try {
-      const token = localStorage.getItem('authToken'); // FIXED: using authToken
+      const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl; // FIXED: using authToken
       
       if (!token) {
         showNotification('Authentication required. Please log in again.', 'error');
         return;
       }
       
-      await axios.delete(`${config.apiBaseUrl}/api/users/${selectedUser.id}`, {
+      await axios.delete(`${baseUrl}/api/users/${selectedUser.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -310,7 +319,9 @@ const UsersManagement = () => {
     }
     
     try {
-      const token = localStorage.getItem('authToken'); // FIXED: using authToken
+      const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl; // FIXED: using authToken
       
       if (!token) {
         showNotification('Authentication required. Please log in again.', 'error');
@@ -318,7 +329,7 @@ const UsersManagement = () => {
       }
       
       await axios.post(
-        `${config.apiBaseUrl}/api/users/${selectedUser.id}/change-password`,
+        `${baseUrl}/api/users/${selectedUser.id}/change-password`,
         {
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword

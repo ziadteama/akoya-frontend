@@ -5,7 +5,6 @@ import {
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
-import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 const AccountantCategories = () => {
@@ -16,12 +15,19 @@ const AccountantCategories = () => {
   const [newPrices, setNewPrices] = useState({ child: "", adult: "", grand: "" });
   const [showArchived, setShowArchived] = useState(false);
   const bottomRef = useRef(null);
+  
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
 
   useEffect(() => { fetchCategories(); }, [showArchived]);
 
   const fetchCategories = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     try {
-      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types`);
+      const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types`);
       const filtered = data.filter(ticket => ticket.archived === showArchived);
       const grouped = filtered.reduce((acc, ticket) => {
         if (!acc[ticket.category]) acc[ticket.category] = [];
@@ -54,8 +60,13 @@ const AccountantCategories = () => {
   };
 
   const handleSave = async (id, price) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     try {
-      await axios.patch(`${config.apiBaseUrl}/api/tickets/update-price`, {
+      await axios.patch(`${baseUrl}/api/tickets/update-price`, {
         tickets: [{ id, price }],
       });
       setEditing(prev => ({ ...prev, [id]: false }));
@@ -68,6 +79,11 @@ const AccountantCategories = () => {
   };
 
   const handleAddCategory = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     // Make description optional, but category and prices required
     if (!newCategory.trim() || Object.values(newPrices).some(p => !p || Number(p) <= 0)) {
       notify.warning("Category name and valid prices are required");
@@ -81,7 +97,7 @@ const AccountantCategories = () => {
       // Description can be empty
       const description = newDescription.trim() || ""; 
       
-      await axios.post(`${config.apiBaseUrl}/api/tickets/add-type`, {
+      await axios.post(`${baseUrl}/api/tickets/add-type`, {
         ticketTypes: ["child", "adult", "grand"].map(type => ({
           category: formattedCategory,
           subcategory: type,
@@ -102,11 +118,16 @@ const AccountantCategories = () => {
   };
 
   const handleToggleArchive = async (categoryName, archived) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     confirmToast(
       `${archived ? 'Archive' : 'Unarchive'} ${categoryName}?`,
       async () => {
         try {
-          await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, {
+          await axios.patch(`${baseUrl}/api/tickets/archive-category`, {
             category: categoryName,
             archived,
           });
@@ -121,11 +142,16 @@ const AccountantCategories = () => {
   };
   
   const handleDeleteCategory = (categoryName) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     confirmToast(
       `Are you sure you want to delete ${categoryName}? This action cannot be undone.`,
       async () => {
         try {
-          await axios.delete(`${config.apiBaseUrl}/api/tickets/delete-category/${categoryName}`);
+          await axios.delete(`${baseUrl}/api/tickets/delete-category/${categoryName}`);
           notify.success(`${categoryName} deleted successfully`);
           fetchCategories();
         } catch (err) {

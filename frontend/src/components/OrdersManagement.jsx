@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -42,7 +42,8 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import axios from 'axios';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 // Icons
@@ -96,19 +97,27 @@ const OrdersManagement = () => {
   // Tab state for edit dialog
   const [editTab, setEditTab] = useState(0);
 
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   // Fetch orders on component mount and when date range changes
   useEffect(() => {
     fetchOrders();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, baseUrl]);
   
   // Fetch ticket types and meals for order editing
   useEffect(() => {
     fetchTicketTypes();
     fetchMeals();
-  }, []);
+  }, [baseUrl]);
   
   // Fetch orders from API
   const fetchOrders = async () => {
+    if (!baseUrl) {
+      setError('API configuration not available');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -127,7 +136,7 @@ const OrdersManagement = () => {
         endDate: toDate.format('YYYY-MM-DD')
       };
       
-      const response = await axios.get(`${config.apiBaseUrl}/api/orders/range-report`, { 
+      const response = await axios.get(`${baseUrl}/api/orders/range-report`, { 
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -152,12 +161,14 @@ const OrdersManagement = () => {
 
   // Fetch ticket types for adding tickets to order
   const fetchTicketTypes = async () => {
+    if (!baseUrl) return;
+
     try {
       const token = localStorage.getItem('authToken');
       
       if (!token) return;
       
-      const response = await axios.get('http://localhost:3000/api/tickets/ticket-types', {
+      const response = await axios.get(`${baseUrl}/api/tickets/ticket-types`, {
         params: { archived: false },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -170,12 +181,14 @@ const OrdersManagement = () => {
   
   // Fetch meals for adding to order
   const fetchMeals = async () => {
+    if (!baseUrl) return;
+
     try {
       const token = localStorage.getItem('authToken');
       
       if (!token) return;
       
-      const response = await axios.get('http://localhost:3000/api/meals', {
+      const response = await axios.get(`${baseUrl}/api/meals`, {
         params: { archived: false },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -758,74 +771,6 @@ const OrdersManagement = () => {
     return isValid;
   };
 
-  // Remove this function completely
-  // const autoDistributeRemainingAmount = () => {
-  //   if (!editableOrder) return;
-    
-  //   // Get the gross total before any discounts
-  //   const grossTotal = parseFloat(editableOrder.gross_total || 0);
-    
-  //   // Calculate current discount total
-  //   const discountAmount = editableOrder.payments
-  //     .filter(payment => payment.method === 'discount')
-  //     .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
-    
-  //   // Calculate the net amount that should be covered by non-discount payments
-  //   // Use toFixed(2) and parseFloat to avoid floating point issues
-  //   const netAmountNeeded = parseFloat((grossTotal - discountAmount).toFixed(2));
-    
-  //   // Get all non-discount payments
-  //   const nonDiscountPayments = editableOrder.payments.filter(p => p.method !== 'discount');
-    
-  //   const updatedPayments = [...editableOrder.payments];
-    
-  //   // Handle different cases based on number of non-discount payments
-  //   if (nonDiscountPayments.length === 0) {
-  //     // If no non-discount payments, add a cash payment for the net amount
-  //     updatedPayments.push({ method: 'cash', amount: netAmountNeeded });
-  //   } else if (nonDiscountPayments.length === 1) {
-  //     // If there's one non-discount payment, adjust it to cover the net amount
-  //     const nonDiscountIndex = updatedPayments.findIndex(p => p.method !== 'discount');
-  //     updatedPayments[nonDiscountIndex].amount = netAmountNeeded;
-  //   } else {
-  //     // If multiple non-discount payments, distribute evenly
-  //     const nonDiscountIndices = updatedPayments
-  //       .map((p, i) => p.method !== 'discount' ? i : -1)
-  //       .filter(i => i !== -1);
-      
-  //     // Distribute amount evenly with proper rounding
-  //     const perPayment = (netAmountNeeded / nonDiscountIndices.length);
-  //     let remaining = netAmountNeeded;
-      
-  //     for (let i = 0; i < nonDiscountIndices.length; i++) {
-  //       const index = nonDiscountIndices[i];
-        
-  //       if (i === nonDiscountIndices.length - 1) {
-  //         // Last payment gets exact remainder to ensure total is correct
-  //         updatedPayments[index].amount = parseFloat(remaining.toFixed(2));
-  //       } else {
-  //         // Other payments get rounded values
-  //         const amount = parseFloat(perPayment.toFixed(2));
-  //         updatedPayments[index].amount = amount;
-  //         remaining -= amount;
-  //       }
-  //     }
-  //   }
-    
-  //   // Update state with the new payments
-  //   setEditableOrder(prevState => ({
-  //     ...prevState,
-  //     payments: updatedPayments,
-  //     total_amount: (grossTotal - discountAmount).toFixed(2)
-  //   }));
-    
-  //   setNotification({
-  //     open: true,
-  //     message: 'Payment amounts auto-adjusted',
-  //     severity: 'success'
-  //   });
-  // };
-
   // Add this function to remove payment methods
   const handleRemovePayment = (index) => {
     if (!editableOrder || editableOrder.payments.length <= 1) return;
@@ -956,6 +901,11 @@ const OrdersManagement = () => {
 
   // Save order changes
   const saveOrderChanges = async () => {
+    if (!baseUrl) {
+      notify.error('API configuration not available');
+      return;
+    }
+
     try {
       if (!editableOrder || !selectedOrder) return;
       
@@ -1027,7 +977,7 @@ const OrdersManagement = () => {
       
       // Send the update request
       const response = await axios.put(
-        `${config.apiBaseUrl}/api/orders/update`,
+        `${baseUrl}/api/orders/update`,
         updatePayload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

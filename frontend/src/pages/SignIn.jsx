@@ -15,7 +15,7 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 // import WavesIcon from "@mui/icons-material/Waves";
 // Import the Akoya logo
 import AkoyaLogo from '../assets/Akoya logo RGB-1.png';
-import config from '../../../config';
+// Remove config import
 import { notify } from '../utils/toast';
 
 const SignIn = () => {
@@ -29,6 +29,7 @@ const SignIn = () => {
   const [serverStatus, setServerStatus] = useState(true); // Assume server is up initially
   
   const navigate = useNavigate();
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
 
   // Handle input changes
   const handleChange = (e) => {
@@ -48,6 +49,12 @@ const SignIn = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     
+    // Check if baseUrl is available
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     // Basic validation
     if (!formData.username.trim() || !formData.password) {
       notify.error("Username and password are required");
@@ -61,7 +68,7 @@ const SignIn = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      const response = await fetch(`${config.apiBaseUrl}/api/users/login`, {
+      const response = await fetch(`${baseUrl}/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

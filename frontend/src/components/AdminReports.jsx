@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Paper,
   Typography,
@@ -32,7 +32,8 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 // Import the OrdersTable component
 import OrdersTable from "./OrdersTable";
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 
 const AdminReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -49,8 +50,15 @@ const AdminReports = () => {
     totalOrders: 0
   });
 
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   const fetchReport = async (shouldFetch = true) => {
     if (!shouldFetch) return;
+    
+    if (!baseUrl) {
+      setError("API configuration not available");
+      return;
+    }
     
     if (useRange && fromDate.isAfter(toDate)) {
       setError("Start date cannot be after end date");
@@ -66,8 +74,8 @@ const AdminReports = () => {
         : { date: selectedDate.format("YYYY-MM-DD") };
           
       const endpoint = useRange
-        ? `${config.apiBaseUrl}/api/orders/range-report`
-        : `${config.apiBaseUrl}/api/orders/day-report`;
+        ? `${baseUrl}/api/orders/range-report`
+        : `${baseUrl}/api/orders/day-report`;
           
       const { data } = await axios.get(endpoint, { params });
       
@@ -113,7 +121,7 @@ const AdminReports = () => {
     }, 500); // Wait 500ms after last change before fetching
     
     return () => clearTimeout(timer);
-  }, [selectedDate, fromDate, toDate, useRange]);
+  }, [selectedDate, fromDate, toDate, useRange, baseUrl]);
 
   const exportCSV = () => {
     if (reportData.length === 0) return;

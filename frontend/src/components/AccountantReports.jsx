@@ -15,7 +15,6 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
-import config from '../../../config';
 import { notify } from '../utils/toast';
 
 const AccountantReports = () => {
@@ -28,8 +27,16 @@ const AccountantReports = () => {
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState({ totalTickets: 0, totalRevenue: 0 });
 
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   const fetchReport = async (shouldFetch = true) => {
     if (!shouldFetch) return;
+    
+    if (!baseUrl) {
+      setError("API configuration not available");
+      notify.error("API configuration not available");
+      return;
+    }
     
     if (useRange && fromDate.isAfter(toDate)) {
       setError("Start date cannot be after end date");
@@ -46,8 +53,8 @@ const AccountantReports = () => {
         : { date: selectedDate.format("YYYY-MM-DD") };
           
       const endpoint = useRange
-        ? `${config.apiBaseUrl}/api/orders/range-report`
-        : `${config.apiBaseUrl}/api/orders/day-report`;
+        ? `${baseUrl}/api/orders/range-report`
+        : `${baseUrl}/api/orders/day-report`;
           
       const { data } = await axios.get(endpoint, { params });
       
@@ -87,7 +94,7 @@ const AccountantReports = () => {
     }, 500); // Wait 500ms after last change before fetching
     
     return () => clearTimeout(timer);
-  }, [selectedDate, fromDate, toDate, useRange]);
+  }, [selectedDate, fromDate, toDate, useRange, baseUrl]);
 
   const exportCSV = () => {
     if (reportData.length === 0) return;

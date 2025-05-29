@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Box, Paper, Typography, Button, IconButton, TextField, Table, 
   TableBody, TableCell, TableContainer, TableHead, TableRow, 
@@ -15,7 +15,8 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 const AdminCategories = () => {
@@ -43,6 +44,8 @@ const AdminCategories = () => {
     
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       if (!token) {
         setError('Authentication required. Please log in again.');
@@ -51,12 +54,13 @@ const AdminCategories = () => {
         return;
       }
       
-      const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket-types`, {
+      const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Filter categories based on archived status
       const filtered = data.filter(ticket => ticket.archived === showArchived);
+
       
       // Group tickets by category
       const grouped = filtered.reduce((acc, ticket) => {
@@ -69,6 +73,8 @@ const AdminCategories = () => {
       Object.keys(grouped).forEach((cat) => {
         grouped[cat].sort((a, b) => {
           const order = ["child", "adult", "grand"];
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
           return order.indexOf(a.subcategory) - order.indexOf(b.subcategory);
         });
       });
@@ -87,6 +93,8 @@ const AdminCategories = () => {
   const handleEditPrice = (id, value) => {
     setCategories(prev => {
       const updated = { ...prev };
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       Object.keys(updated).forEach(category => {
         updated[category] = updated[category].map(ticket =>
           ticket.id === id ? { ...ticket, price: value } : ticket
@@ -100,8 +108,10 @@ const AdminCategories = () => {
   const handleSave = async (id, price) => {
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
-      await axios.patch(`${config.apiBaseUrl}/api/tickets/update-price`, 
+      await axios.patch(`${baseUrl}/api/tickets/update-price`, 
         { tickets: [{ id, price }] },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -127,8 +137,10 @@ const AdminCategories = () => {
     
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
-      await axios.post(`${config.apiBaseUrl}/api/tickets/add-type`, 
+      await axios.post(`${baseUrl}/api/tickets/add-type`, 
         {
           ticketTypes: ["child", "adult", "grand"].map(type => ({
             category: newCategory,
@@ -159,8 +171,10 @@ const AdminCategories = () => {
   const handleToggleArchive = async (categoryName, archived) => {
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
-      await axios.patch(`${config.apiBaseUrl}/api/tickets/archive-category`, 
+      await axios.patch(`${baseUrl}/api/tickets/archive-category`, 
         { category: categoryName, archived },
         { headers: { Authorization: `Bearer ${token}` } }
       );

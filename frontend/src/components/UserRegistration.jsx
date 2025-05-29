@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -12,7 +12,8 @@ import {
   CircularProgress
 } from "@mui/material";
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 import { notify } from '../utils/toast';
 
 const UserRegistration = () => {
@@ -31,7 +32,9 @@ const UserRegistration = () => {
   // Get current user role and token on component mount
   useEffect(() => {
     const role = localStorage.getItem("userRole");
+
     const authToken = localStorage.getItem("authToken");
+
     setCurrentUserRole(role || "");
     setToken(authToken || "");
     
@@ -108,7 +111,7 @@ const UserRegistration = () => {
     
     try {
       // Use fetch instead of axios
-      const response = await fetch(`${config.apiBaseUrl}/api/users/register`, {
+      const response = await fetch(`${baseUrl}/api/users/register`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -125,10 +128,13 @@ const UserRegistration = () => {
       if (!response.ok) {
         // Handle non-2xx responses
         const errorData = await response.json().catch(() => ({}));
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
         throw new Error(errorData.message || `Error: ${response.status}`);
       }
       
       const data = await response.json();
+
       
       // Show success message
       notify.success("User registered successfully!");

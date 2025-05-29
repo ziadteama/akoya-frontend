@@ -6,7 +6,7 @@ import {
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
-import config from '../../../config';
+// Remove config import
 import { notify, confirmToast } from '../utils/toast';
 
 const AccountantMeals = () => {
@@ -18,11 +18,18 @@ const AccountantMeals = () => {
   const [showArchived, setShowArchived] = useState(false);
   const bottomRef = useRef(null);
 
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+
   useEffect(() => { fetchMeals(); }, [showArchived]);
 
   const fetchMeals = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     try {
-      const { data } = await axios.get(`${config.apiBaseUrl}/api/meals?archived=${showArchived}`);
+      const { data } = await axios.get(`${baseUrl}/api/meals?archived=${showArchived}`);
       setMeals(data);
     } catch (err) {
       console.error("Error fetching meals:", err);
@@ -35,8 +42,13 @@ const AccountantMeals = () => {
   };
 
   const handleSave = async (id, price) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     try {
-      await axios.put(`${config.apiBaseUrl}/api/meals/edit`, {
+      await axios.put(`${baseUrl}/api/meals/edit`, {
         meals: [{ 
           id, 
           name: meals.find(m => m.id === id).name, 
@@ -55,6 +67,11 @@ const AccountantMeals = () => {
   };
 
   const handleAddMeal = async () => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     // Make name and price required, but description optional
     if (!newName.trim() || !newPrice || Number(newPrice) <= 0) {
       notify.warning("Name and valid price are required");
@@ -65,7 +82,7 @@ const AccountantMeals = () => {
       // Use empty string if description is not provided
       const description = newDescription.trim() || "";
       
-      await axios.post(`${config.apiBaseUrl}/api/meals/add`, {
+      await axios.post(`${baseUrl}/api/meals/add`, {
         meals: [{
           name: newName,
           description: description,
@@ -86,8 +103,13 @@ const AccountantMeals = () => {
   };
 
   const handleToggleArchive = async (name, archived) => {
+    if (!baseUrl) {
+      notify.error("API configuration not available");
+      return;
+    }
+    
     try {
-      await axios.patch(`${config.apiBaseUrl}/api/meals/archive`, { name, archived });
+      await axios.patch(`${baseUrl}/api/meals/archive`, { name, archived });
       notify.success(`${name} ${archived ? "archived" : "unarchived"} successfully`);
       fetchMeals();
     } catch (err) {

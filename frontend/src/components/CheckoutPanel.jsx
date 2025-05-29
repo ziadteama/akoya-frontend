@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -18,9 +18,9 @@ import {
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PrintIcon from '@mui/icons-material/Print';
-import SettingsIcon from '@mui/icons-material/Settings';
 import axios from "axios";
-import config from "../config";
+// Remove config import
+// import config from "../config";
 import { notify } from "../utils/toast";
 import { useReactToPrint } from 'react-to-print';
 
@@ -43,8 +43,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
 
   // Add receipt ref for printing
   const receiptRef = useRef();
+  const [cashierName, setCashierName] = useState('');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
 
   const getAmount = (method) => amounts[method] || 0;
+
   const setAmount = (method, value) =>
     setAmounts((prev) => ({ ...prev, [method]: Number(value) }));
 
@@ -56,9 +60,11 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
 
   // Fetch meals data
   useEffect(() => {
+    if (!baseUrl) return;
+    
     const fetchMeals = async () => {
       try {
-        const response = await axios.get(`${config.apiBaseUrl}/api/meals?archived=false`);
+        const response = await axios.get(`${baseUrl}/api/meals?archived=false`);
         console.log("Meals data fetched:", response.data.slice(0, 2));
         setMeals(response.data.map(meal => ({
           ...meal,
@@ -71,10 +77,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     };
     
     fetchMeals();
-  }, []);
-
-  // Add user info
-  const [cashierName, setCashierName] = useState('');
+  }, [baseUrl]);
 
   // Get cashier name on component mount
   useEffect(() => {
@@ -238,69 +241,30 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     setOpen(true);
   };
 
-  // Update the useReactToPrint hook configuration
-  const printRef = useReactToPrint({
+  // Browser-only print function using react-to-print
+  const handlePrint = useReactToPrint({
     content: () => receiptRef.current,
-    onAfterPrint: () => notify.success('Receipt printed successfully using browser'),
+    documentTitle: `Receipt-${new Date().toISOString().split('T')[0]}`,
+    onAfterPrint: () => notify.success('Receipt printed successfully'),
     onPrintError: (error) => {
       console.error("Print error:", error);
       notify.error('Failed to print receipt');
     },
-    removeAfterPrint: false // Keep the print iframe in DOM
-  });
-
-  // Then modify the handlePrint function to avoid calling hooks inside it
-  const handlePrint = () => {
-    // Check if receipt template exists
-    if (!receiptRef.current) {
-      console.error("Receipt template not found");
-      notify.error("Receipt template not found");
-      return;
-    }
-
-    // Set printing options
-    const options = {
-      silent: true,
-      printBackground: true,
-      deviceName: selectedPrinter || undefined,
-      pageSize: { width: 80000, height: -1 }, // 80mm width in microns
-      margins: { marginType: 'none' },
-      scaleFactor: 100,
-    };
-    
-    if (window.electron) {
-      try {
-        // Make sure receipt content is rendered before printing
-        const receiptContent = receiptRef.current.innerHTML;
-        if (!receiptContent || receiptContent.trim() === '') {
-          notify.error('Empty receipt content');
-          return;
-        }
-        
-        // Use Electron for silent printing
-        window.electron.print(receiptContent, options)
-          .then(() => {
-            notify.success('Receipt printed successfully');
-          })
-          .catch(error => {
-            console.error("Print error:", error);
-            notify.error('Failed to print with Electron, trying browser print');
-            
-            // Fall back to browser printing if electron print fails
-            setTimeout(() => printRef(), 100); // Add slight delay before browser print
-          });
-      } catch (error) {
-        console.error("Error preparing print job:", error);
-        notify.error('Error preparing print job');
-        
-        // Try browser print as last resort
-        setTimeout(() => printRef(), 100);
+    removeAfterPrint: false,
+    pageStyle: `
+      @page {
+        size: 80mm auto;
+        margin: 0;
       }
-    } else {
-      // Use react-to-print for browser fallback
-      setTimeout(() => printRef(), 100); // Add slight delay
-    }
-  };
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+          -webkit-print-color-adjust: exact;
+        }
+      }
+    `
+  });
 
   // Handle checkout confirmation
   const handleConfirm = async () => {
@@ -411,69 +375,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       />
     );
   };
-
-  // Printer settings state
-  const [printers, setPrinters] = useState([]);
-  const [selectedPrinter, setSelectedPrinter] = useState('');
-  const [isPrinterDialogOpen, setPrinterDialogOpen] = useState(false);
-
-  // Get available printers when component mounts
-  useEffect(() => {
-    // Check if running in Electron
-    if (window.electron) {
-      // Get available printers from Electron
-      window.electron.getPrinters().then(availablePrinters => {
-        setPrinters(availablePrinters);
-        
-        // Load saved printer from localStorage
-        const savedPrinter = localStorage.getItem('selectedPrinter');
-        if (savedPrinter && availablePrinters.some(p => p.name === savedPrinter)) {
-          setSelectedPrinter(savedPrinter);
-        } else if (availablePrinters.length > 0) {
-          // Default to first printer if no saved printer or saved printer not available
-          setSelectedPrinter(availablePrinters[0].name);
-          localStorage.setItem('selectedPrinter', availablePrinters[0].name);
-        }
-      }).catch(error => {
-        console.error("Error getting printers:", error);
-      });
-    }
-  }, []);
-
-  // Printer settings dialog
-  const PrinterSettingsDialog = () => (
-    <Dialog open={isPrinterDialogOpen} onClose={() => setPrinterDialogOpen(false)}>
-      <DialogTitle>Receipt Printer Settings</DialogTitle>
-      <DialogContent>
-        <FormControl fullWidth sx={{ mt: 2 }}>
-          <InputLabel>Select Printer</InputLabel>
-          <Select
-            value={selectedPrinter}
-            label="Select Printer"
-            onChange={(e) => {
-              const selected = e.target.value;
-              setSelectedPrinter(selected);
-              localStorage.setItem('selectedPrinter', selected);
-            }}
-          >
-            {printers.map(printer => (
-              <MenuItem key={printer.name} value={printer.name}>
-                {printer.name} {printer.isDefault ? '(Default)' : ''}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          Receipt will print automatically after checkout.
-          Your printer selection will be remembered for future sessions.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setPrinterDialogOpen(false)}>Close</Button>
-      </DialogActions>
-    </Dialog>
-  );
 
   return (
     <>
@@ -613,19 +514,18 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Button>
         </Box>
 
-        {/* Printer Settings button only */}
-        {window.electron && (
-          <Box mt={1} display="flex" justifyContent="flex-end">
-            <Button
-              startIcon={<SettingsIcon />}
-              size="small"
-              onClick={() => setPrinterDialogOpen(true)}
-              sx={{ fontSize: "0.75rem" }}
-            >
-              Printer Settings
-            </Button>
-          </Box>
-        )}
+        {/* Manual Print Button */}
+        <Box mt={1} display="flex" justifyContent="flex-end">
+          <Button
+            startIcon={<PrintIcon />}
+            size="small"
+            onClick={handlePrint}
+            disabled={!hasItems}
+            sx={{ fontSize: "0.75rem" }}
+          >
+            Print Receipt
+          </Button>
+        </Box>
       </Box>
 
       {/* Receipt Template (hidden until printing) */}
@@ -634,13 +534,15 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         sx={{
           display: 'none',
           width: '80mm',
-          padding: '3mm', // Reduced from 5mm
+          padding: '3mm',
           fontFamily: 'monospace',
-          fontSize: '9pt', // Reduced from 10pt
+          fontSize: '9pt',
+          backgroundColor: 'white',
+          color: 'black',
           '@media print': {
             display: 'block',
             margin: 0,
-            padding: '3mm', // Reduced from 5mm
+            padding: '3mm',
           }
         }}
       >
@@ -662,7 +564,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Typography>
         </Box>
         
-        <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+        <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: 'black' }} />
         
         {/* Receipt Content */}
         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
@@ -701,7 +603,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           );
         })}
         
-        <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+        <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: 'black' }} />
         
         {/* Totals */}
         <Box sx={{ mb: 1 }}>
@@ -750,7 +652,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             </Box>
           ))}
         
-        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: 'black' }} />
         
         {/* Footer */}
         <Box sx={{ textAlign: 'center', mt: 1 }}>
@@ -841,11 +743,9 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Printer Settings Dialog */}
-      <PrinterSettingsDialog />
     </>
   );
 };
 
 export default CheckoutPanel;
+

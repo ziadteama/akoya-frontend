@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -33,7 +33,8 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import config from '../../../config';
+// Remove config import
+// import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 const AdminMeals = () => {
@@ -66,6 +67,8 @@ const AdminMeals = () => {
     
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       if (!token) {
         setError('Authentication required. Please log in again.');
@@ -74,7 +77,7 @@ const AdminMeals = () => {
         return;
       }
       
-      const response = await axios.get(`${config.apiBaseUrl}/api/meals`, { 
+      const response = await axios.get(`${baseUrl}/api/meals`, { 
         params: { archived: showArchived },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -84,6 +87,8 @@ const AdminMeals = () => {
         
         // Store original meals for comparison
         const originals = {};
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
         response.data.forEach(meal => {
           originals[meal.id] = { ...meal };
         });
@@ -115,6 +120,8 @@ const AdminMeals = () => {
     // Store the original value before editing
     if (!originalMeals[id]) {
       const meal = meals.find(m => m.id === id);
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       if (meal) {
         setOriginalMeals(prev => ({
           ...prev,
@@ -137,11 +144,13 @@ const AdminMeals = () => {
   const handleSaveMeal = async (id) => {
     try {
       const mealToUpdate = meals.find(meal => meal.id === id);
+
       
       if (!mealToUpdate) return;
       
       // Check if anything actually changed
       const originalMeal = originalMeals[id];
+
       
       if (originalMeal && 
           parseFloat(originalMeal.price) === parseFloat(mealToUpdate.price)) {
@@ -152,9 +161,11 @@ const AdminMeals = () => {
       }
       
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       await axios.put(
-        `${config.apiBaseUrl}/api/meals/edit`,
+        `${baseUrl}/api/meals/edit`,
         {
           meals: [{
             id,
@@ -193,9 +204,11 @@ const AdminMeals = () => {
     
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       await axios.post(
-        `${config.apiBaseUrl}/api/meals/add`,
+        `${baseUrl}/api/meals/add`,
         {
           meals: [{
             name: newMeal.name,
@@ -229,9 +242,11 @@ const AdminMeals = () => {
   const handleToggleArchive = async (name, archived) => {
     try {
       const token = localStorage.getItem('authToken');
+
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       await axios.patch(
-        `${config.apiBaseUrl}/api/meals/archive`,
+        `${baseUrl}/api/meals/archive`,
         { name, archived },
         { headers: { Authorization: `Bearer ${token}` } }
       );

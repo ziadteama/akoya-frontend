@@ -33,12 +33,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
 
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [amounts, setAmounts] = useState({ 
-    visa_bank: 0,
-    visa_other: 0,
-    cash: 0, 
-    vodafone_cash: 0, 
-    postponed: 0,
-    discount: 0 
+    'الاهلي و مصر': 0,
+    'OTHER': 0,
+    'cash': 0, 
+    'vodafone_cash': 0, 
+    'postponed': 0,
+    'discount': 0 
   });
 
   const [cashierName, setCashierName] = useState('');
@@ -308,7 +308,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       // Reset the component state
       setDescription("");
       setSelectedMethods([]);
-      setAmounts({ visa_bank: 0, visa_other: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
+      setAmounts({ 
+        'الاهلي و مصر': 0, 
+        'OTHER': 0, 
+        'cash': 0, 
+        'vodafone_cash': 0, 
+        'postponed': 0, 
+        'discount': 0 
+      });
       setMealCounts({});
       
       // Show success message
@@ -390,10 +397,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
   // Add this helper function for payment method display names:
   const getPaymentMethodDisplayName = (method) => {
     switch(method) {
-      case 'visa_bank': return 'VISA BANK';
-      case 'visa_other': return 'VISA OTHER';
       case 'vodafone_cash': return 'VODAFONE CASH';
-      default: return method.replace("_", " ").toUpperCase();
+      default: return method.toUpperCase();
     }
   };
 
@@ -420,13 +425,11 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       ? finalTotal.toFixed(2) 
       : (currentAmount === 0 ? "" : currentAmount.toString());
     
-    // Create a user-friendly label
+    // Since the method name is now the display name, use it directly
     const getMethodLabel = (method) => {
       switch(method) {
-        case 'visa_bank': return 'VISA BANK';
-        case 'visa_other': return 'VISA OTHER';
         case 'vodafone_cash': return 'VODAFONE CASH';
-        default: return method.replace("_", " ").toUpperCase();
+        default: return method.toUpperCase();
       }
     };
     
@@ -447,6 +450,134 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         sx={{ flexBasis: "calc(50% - 8px)", flexGrow: 1, mb: 1 }}
       />
     );
+  };
+
+  const openPrintWindow = (receiptData, copyLabel, onComplete) => {
+    const receiptHTML = generateReceiptHTML(receiptData, copyLabel);
+    
+    const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
+    
+    if (!printWindow) {
+      notify.error('Print window blocked. Please allow popups.');
+      if (onComplete) onComplete();
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${copyLabel}</title>
+          <meta charset="UTF-8">
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { margin: 0; padding: 3mm; font-family: 'Courier New', monospace; font-size: 10pt; background: white; color: black; }
+          </style>
+        </head>
+        <body>
+          ${receiptHTML}
+          <script>
+            window.onload = function() {
+              window.focus();
+              window.print();
+              setTimeout(function() { window.close(); }, 1000);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    notify.info(`📄 Printing ${copyLabel}...`, { duration: 2000 });
+    
+    const checkClosed = setInterval(() => {
+      if (printWindow.closed) {
+        clearInterval(checkClosed);
+        if (onComplete) onComplete();
+      }
+    }, 1000);
+    
+    setTimeout(() => {
+      if (!printWindow.closed) printWindow.close();
+      clearInterval(checkClosed);
+      if (onComplete) onComplete();
+    }, 10000);
+  };
+
+  const generateReceiptHTML = (data, copyLabel = '') => {
+    return `
+      <div style="width: 74mm; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2;">
+        <div style="text-align: center; margin-bottom: 5mm;">
+          <div style="font-weight: bold; font-size: 14pt; margin-bottom: 2mm;">${data.header.title}</div>
+          <div style="font-size: 9pt; margin-bottom: 1mm;">${data.header.timestamp}</div>
+          <div style="font-size: 9pt; margin-bottom: 1mm;">Cashier: ${data.header.cashier}</div>
+          <div style="font-size: 9pt; margin-bottom: 1mm;">Order ID: ${data.header.orderId}</div>
+          ${copyLabel ? `<div style="font-size: 8pt; font-weight: bold; color: #666; margin-top: 2mm; border: 1px solid #666; padding: 2px;">[${copyLabel}]</div>` : ''}
+        </div>
+        
+        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        
+        <div style="font-weight: bold; margin: 2mm 0 1mm 0; font-size: 10pt;">ORDER ITEMS</div>
+        
+        ${data.items.tickets && data.items.tickets.length > 0 ? data.items.tickets.map(ticket => `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
+            <span style="flex: 1; padding-right: 2mm;">${ticket.name}${ticket.quantity > 1 ? ` × ${ticket.quantity}` : ''}</span>
+            <span style="white-space: nowrap;">EGP ${(ticket.total || 0).toFixed(2)}</span>
+          </div>
+        `).join('') : ''}
+        
+        ${data.items.meals && data.items.meals.length > 0 ? data.items.meals.map(meal => `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
+            <span style="flex: 1; padding-right: 2mm;">${meal.name} × ${meal.quantity}</span>
+            <span style="white-space: nowrap;">EGP ${(meal.total || 0).toFixed(2)}</span>
+          </div>
+        `).join('') : ''}
+        
+        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        
+        ${data.totals.ticketTotal > 0 ? `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
+            <span>Tickets:</span><span>EGP ${data.totals.ticketTotal.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        
+        ${data.totals.mealTotal > 0 ? `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
+            <span>Meals:</span><span>EGP ${data.totals.mealTotal.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        
+        ${data.totals.discountAmount > 0 ? `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt; color: red;">
+            <span>Discount:</span><span>-EGP ${data.totals.discountAmount.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        
+        <div style="border-top: 1px solid black; margin: 2mm 0;"></div>
+        
+        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2mm; font-size: 11pt;">
+          <span>TOTAL:</span><span>EGP ${data.totals.finalTotal.toFixed(2)}</span>
+        </div>
+        
+        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        
+        <div style="font-weight: bold; margin: 2mm 0 1mm 0; font-size: 10pt;">PAYMENT DETAILS</div>
+        
+        ${data.payments && data.payments.length > 0 ? data.payments.map(payment => `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
+            <span>${payment.method}:</span><span>EGP ${payment.amount.toFixed(2)}</span>
+          </div>
+        `).join('') : ''}
+        
+        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        
+        <div style="text-align: center; margin-top: 3mm; font-size: 9pt; font-style: italic;">
+          <div>Thank you for visiting</div>
+          <div>Akoya Water Park!</div>
+          <div>Have a wonderful day! 🌊</div>
+        </div>
+      </div>
+    `;
   };
 
   return (
@@ -589,7 +720,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       </Box>
 
       {/* Checkout Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md">
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md"
+        sx={{
+          '& .MuiToggleButton-root': {
+            fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif',
+            fontSize: '0.875rem'
+          }
+        }}
+      >
         <DialogTitle sx={{ bgcolor: "#E0F7FF", color: "#00AEEF" }}>
           Confirm Checkout
         </DialogTitle>
@@ -615,22 +753,22 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             color="primary"
             sx={{ mt: 1, display: "flex", flexWrap: "wrap" }}
           >
-            {/* Visa Bank */}
+            {/* Visa Bank - Using actual enum value */}
             <ToggleButton 
-              value="visa_bank" 
+              value="الاهلي و مصر" 
               aria-label="visa_bank"
-              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+              sx={{ flex: "1 0 auto", minWidth: "120px" }}
             >
-              VISA BANK
+              الاهلي و مصر
             </ToggleButton>
             
-            {/* Visa Other */}
+            {/* Visa Other - Using actual enum value */}
             <ToggleButton 
-              value="visa_other" 
+              value="OTHER" 
               aria-label="visa_other"
               sx={{ flex: "1 0 auto", minWidth: "100px" }}
             >
-              VISA OTHER
+              OTHER
             </ToggleButton>
             
             {/* Keep existing payment methods */}

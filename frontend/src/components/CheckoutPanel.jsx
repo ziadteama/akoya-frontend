@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -17,9 +17,13 @@ import {
 } from "@mui/material";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PrintIcon from '@mui/icons-material/Print';
+import SettingsIcon from '@mui/icons-material/Settings';
 import axios from "axios";
 import config from "../config";
 import { notify } from "../utils/toast";
+import { useReactToPrint } from 'react-to-print';
+import AkoyaLogo from '../assets/Akoya logo RGB-1.svg'; // Make sure this path is correct for your logo
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new", ticketIds = [], ticketDetails = [] }) => {
   const [open, setOpen] = useState(false);
@@ -37,6 +41,9 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     postponed: 0,
     discount: 0 
   });
+
+  // Add receipt ref for printing
+  const receiptRef = useRef();
 
   const getAmount = (method) => amounts[method] || 0;
   const setAmount = (method, value) =>
@@ -65,6 +72,15 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     };
     
     fetchMeals();
+  }, []);
+
+  // Add user info
+  const [cashierName, setCashierName] = useState('');
+
+  // Get cashier name on component mount
+  useEffect(() => {
+    const name = localStorage.getItem("userName") || "Unknown Cashier";
+    setCashierName(name);
   }, []);
 
   // Determine selected tickets based on mode
@@ -223,6 +239,70 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     setOpen(true);
   };
 
+  // Update the useReactToPrint hook configuration
+  const printRef = useReactToPrint({
+    content: () => receiptRef.current,
+    onAfterPrint: () => notify.success('Receipt printed successfully using browser'),
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      notify.error('Failed to print receipt');
+    },
+    removeAfterPrint: false // Keep the print iframe in DOM
+  });
+
+  // Then modify the handlePrint function to avoid calling hooks inside it
+  const handlePrint = () => {
+    // Check if receipt template exists
+    if (!receiptRef.current) {
+      console.error("Receipt template not found");
+      notify.error("Receipt template not found");
+      return;
+    }
+
+    // Set printing options
+    const options = {
+      silent: true,
+      printBackground: true,
+      deviceName: selectedPrinter || undefined,
+      pageSize: { width: 80000, height: -1 }, // 80mm width in microns
+      margins: { marginType: 'none' },
+      scaleFactor: 100,
+    };
+    
+    if (window.electron) {
+      try {
+        // Make sure receipt content is rendered before printing
+        const receiptContent = receiptRef.current.innerHTML;
+        if (!receiptContent || receiptContent.trim() === '') {
+          notify.error('Empty receipt content');
+          return;
+        }
+        
+        // Use Electron for silent printing
+        window.electron.print(receiptContent, options)
+          .then(() => {
+            notify.success('Receipt printed successfully');
+          })
+          .catch(error => {
+            console.error("Print error:", error);
+            notify.error('Failed to print with Electron, trying browser print');
+            
+            // Fall back to browser printing if electron print fails
+            setTimeout(() => printRef(), 100); // Add slight delay before browser print
+          });
+      } catch (error) {
+        console.error("Error preparing print job:", error);
+        notify.error('Error preparing print job');
+        
+        // Try browser print as last resort
+        setTimeout(() => printRef(), 100);
+      }
+    } else {
+      // Use react-to-print for browser fallback
+      setTimeout(() => printRef(), 100); // Add slight delay
+    }
+  };
+
   // Handle checkout confirmation
   const handleConfirm = async () => {
     try {
@@ -281,17 +361,25 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       console.log("Submitting payload:", payload);
 
       // Call the onCheckout callback with the payload data
-      onCheckout(payload);
+      await onCheckout(payload);
+      
+      // Close dialog before printing
+      setOpen(false);
       
       // Reset the component state
-      setOpen(false);
       setDescription("");
       setSelectedMethods([]);
       setAmounts({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
       setMealCounts({});
+      
+      // Add a slight delay before printing to ensure the DOM is updated
+      setTimeout(() => {
+        // Print receipt
+        handlePrint();
+      }, 300);
     } catch (error) {
       console.error("Checkout error:", error);
-      notify.error("Error preparing checkout data");
+      notify.error("Error processing checkout");
     }
   };
 
@@ -324,6 +412,69 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       />
     );
   };
+
+  // Printer settings state
+  const [printers, setPrinters] = useState([]);
+  const [selectedPrinter, setSelectedPrinter] = useState('');
+  const [isPrinterDialogOpen, setPrinterDialogOpen] = useState(false);
+
+  // Get available printers when component mounts
+  useEffect(() => {
+    // Check if running in Electron
+    if (window.electron) {
+      // Get available printers from Electron
+      window.electron.getPrinters().then(availablePrinters => {
+        setPrinters(availablePrinters);
+        
+        // Load saved printer from localStorage
+        const savedPrinter = localStorage.getItem('selectedPrinter');
+        if (savedPrinter && availablePrinters.some(p => p.name === savedPrinter)) {
+          setSelectedPrinter(savedPrinter);
+        } else if (availablePrinters.length > 0) {
+          // Default to first printer if no saved printer or saved printer not available
+          setSelectedPrinter(availablePrinters[0].name);
+          localStorage.setItem('selectedPrinter', availablePrinters[0].name);
+        }
+      }).catch(error => {
+        console.error("Error getting printers:", error);
+      });
+    }
+  }, []);
+
+  // Printer settings dialog
+  const PrinterSettingsDialog = () => (
+    <Dialog open={isPrinterDialogOpen} onClose={() => setPrinterDialogOpen(false)}>
+      <DialogTitle>Receipt Printer Settings</DialogTitle>
+      <DialogContent>
+        <FormControl fullWidth sx={{ mt: 2 }}>
+          <InputLabel>Select Printer</InputLabel>
+          <Select
+            value={selectedPrinter}
+            label="Select Printer"
+            onChange={(e) => {
+              const selected = e.target.value;
+              setSelectedPrinter(selected);
+              localStorage.setItem('selectedPrinter', selected);
+            }}
+          >
+            {printers.map(printer => (
+              <MenuItem key={printer.name} value={printer.name}>
+                {printer.name} {printer.isDefault ? '(Default)' : ''}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Receipt will print automatically after checkout.
+          Your printer selection will be remembered for future sessions.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setPrinterDialogOpen(false)}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
 
   return (
     <>
@@ -462,6 +613,172 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             Clear
           </Button>
         </Box>
+
+        {/* Add printer settings button */}
+        {window.electron && (
+          <Box mt={1} display="flex" justifyContent="flex-end">
+            <Button
+              startIcon={<SettingsIcon />}
+              size="small"
+              onClick={() => setPrinterDialogOpen(true)}
+              sx={{ fontSize: "0.75rem" }}
+            >
+              Printer Settings
+            </Button>
+          </Box>
+        )}
+      </Box>
+
+      {/* Receipt Template (hidden until printing) */}
+      <Box
+        ref={receiptRef}
+        sx={{
+          display: 'none', // Hidden from view
+          width: '80mm', // Width of thermal receipt paper
+          padding: '5mm',
+          fontFamily: 'monospace',
+          fontSize: '10pt',
+          '@media print': {
+            display: 'block',
+            margin: 0,
+            padding: '5mm',
+          }
+        }}
+      >
+        {/* Receipt Header */}
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          {/* Add a fallback for the logo */}
+          {AkoyaLogo ? (
+            <Box
+              component="img"
+              src={AkoyaLogo}
+              alt="Akoya Water Park"
+              sx={{ 
+                height: '20mm', 
+                maxWidth: '100%', 
+                objectFit: 'contain',
+                mb: 1
+              }}
+              onError={(e) => {
+                console.error("Logo failed to load");
+                e.target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '14pt', mb: 1 }}>
+              AKOYA WATER PARK
+            </Typography>
+          )}
+          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '12pt' }}>
+            Akoya Water Park
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
+            {new Date().toLocaleString()}
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
+            Cashier: {cashierName}
+          </Typography>
+        </Box>
+        
+        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        
+        {/* Receipt Content */}
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+          ORDER ITEMS
+        </Typography>
+        
+        {/* Print Tickets */}
+        {selected.map((t) => (
+          <Box key={`receipt-ticket-${t.id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+              {t.category} - {t.subcategory} {mode === "new" ? `× ${normalizedTicketCounts[t.id]}` : ""}
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+              EGP {mode === "new" 
+                ? (normalizedTicketCounts[t.id] * t.price).toFixed(2)
+                : t.price.toFixed(2)
+              }
+            </Typography>
+          </Box>
+        ))}
+        
+        {/* Print Meals */}
+        {Object.entries(mealCounts).map(([id, qty]) => {
+          const meal = meals.find((m) => m.id === parseInt(id));
+          if (!meal) return null;
+          
+          return (
+            <Box key={`receipt-meal-${id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+                {meal.name} × {qty}
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+                EGP {(meal.price * qty).toFixed(2)}
+              </Typography>
+            </Box>
+          );
+        })}
+        
+        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        
+        {/* Totals */}
+        <Box sx={{ mb: 1 }}>
+          {ticketTotal > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Tickets:</Typography>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>EGP {ticketTotal.toFixed(2)}</Typography>
+            </Box>
+          )}
+          
+          {mealTotal > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Meals:</Typography>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>EGP {mealTotal.toFixed(2)}</Typography>
+            </Box>
+          )}
+          
+          {discountAmount > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Discount:</Typography>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>-EGP {discountAmount.toFixed(2)}</Typography>
+            </Box>
+          )}
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, fontWeight: 'bold' }}>
+            <Typography variant="subtitle2" sx={{ fontSize: '10pt' }}>TOTAL:</Typography>
+            <Typography variant="subtitle2" sx={{ fontSize: '10pt' }}>EGP {finalTotal.toFixed(2)}</Typography>
+          </Box>
+        </Box>
+        
+        {/* Payment Details */}
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+          PAYMENT DETAILS
+        </Typography>
+        
+        {selectedMethods
+          .filter(method => method !== 'discount' && getAmount(method) > 0)
+          .map((method) => (
+            <Box key={`receipt-payment-${method}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+                {method.replace("_", " ").toUpperCase()}:
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
+                EGP {getAmount(method).toFixed(2)}
+              </Typography>
+            </Box>
+          ))}
+        
+        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        
+        {/* Footer */}
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Typography variant="body2" sx={{ fontSize: '9pt', fontStyle: 'italic' }}>
+            Thank you for visiting Akoya Water Park!
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
+            www.akoyawaterpark.com
+          </Typography>
+        </Box>
       </Box>
 
       {/* Checkout Dialog */}
@@ -545,6 +862,9 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Printer Settings Dialog */}
+      <PrinterSettingsDialog />
     </>
   );
 };

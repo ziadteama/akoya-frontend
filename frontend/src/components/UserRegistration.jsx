@@ -74,9 +74,19 @@ const UserRegistration = () => {
       return false;
     }
     
+    // Remove this password length validation:
+    /*
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters");
       notify.error("Password must be at least 6 characters");
+      return false;
+    }
+    */
+    
+    // Keep only the basic password requirement check:
+    if (!formData.password.trim()) {
+      setError("Password is required");
+      notify.error("Password is required");
       return false;
     }
     

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -22,7 +22,6 @@ import axios from "axios";
 // Remove config import
 // import config from "../config";
 import { notify } from "../utils/toast";
-import { useReactToPrint } from 'react-to-print';
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new", ticketIds = [], ticketDetails = [] }) => {
   const [open, setOpen] = useState(false);
@@ -34,15 +33,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
 
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [amounts, setAmounts] = useState({ 
-    visa: 0, 
+    visa_bank: 0,
+    visa_other: 0,
     cash: 0, 
     vodafone_cash: 0, 
     postponed: 0,
     discount: 0 
   });
 
-  // Add receipt ref for printing
-  const receiptRef = useRef();
   const [cashierName, setCashierName] = useState('');
 
   const baseUrl = window.runtimeConfig?.apiBaseUrl;
@@ -241,31 +239,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     setOpen(true);
   };
 
-  // Browser-only print function using react-to-print
-  const handlePrint = useReactToPrint({
-    content: () => receiptRef.current,
-    documentTitle: `Receipt-${new Date().toISOString().split('T')[0]}`,
-    onAfterPrint: () => notify.success('Receipt printed successfully'),
-    onPrintError: (error) => {
-      console.error("Print error:", error);
-      notify.error('Failed to print receipt');
-    },
-    removeAfterPrint: false,
-    pageStyle: `
-      @page {
-        size: 80mm auto;
-        margin: 0;
-      }
-      @media print {
-        body {
-          margin: 0;
-          padding: 0;
-          -webkit-print-color-adjust: exact;
-        }
-      }
-    `
-  });
-
   // Handle checkout confirmation
   const handleConfirm = async () => {
     try {
@@ -294,7 +267,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           method: "discount",
           amount: parseFloat(discountAmount.toFixed(2))
         });
-        console.log(`Applied discount: EGP ${discountAmount.toFixed(2)}`);
       }
 
       // Create the appropriate payload based on mode
@@ -305,10 +277,8 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       };
       
       if (mode === "existing") {
-        // For existing tickets (AccountantScan)
         payload.ticket_ids = normalizedTicketIds;
       } else {
-        // For new tickets (CashierSellingPanel)
         payload.tickets = selected.map((t) => ({
           ticket_type_id: parseInt(t.id, 10),
           quantity: parseInt(normalizedTicketCounts[t.id], 10)
@@ -332,27 +302,114 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       // Call the onCheckout callback with the payload data
       await onCheckout(payload);
       
-      // Close dialog before printing
+      // Close dialog
       setOpen(false);
       
       // Reset the component state
       setDescription("");
       setSelectedMethods([]);
-      setAmounts({ visa: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
+      setAmounts({ visa_bank: 0, visa_other: 0, cash: 0, vodafone_cash: 0, postponed: 0, discount: 0 });
       setMealCounts({});
       
-      // Add a slight delay before printing to ensure the DOM is updated
+      // Show success message
+      notify.success("✅ Checkout successful! Opening print windows...", {
+        duration: 3000
+      });
+      
+      // Start the sequential print process
       setTimeout(() => {
-        // Print receipt
-        handlePrint();
-      }, 300);
+        startPrintSequence();
+      }, 1000);
+      
     } catch (error) {
       console.error("Checkout error:", error);
       notify.error("Error processing checkout");
     }
   };
 
-  // Add this function inside the component but outside of the return statement
+  // Add this new function to handle the print sequence:
+  const startPrintSequence = () => {
+    // Build receipt data
+    const receiptData = buildReceiptData();
+    
+    // Open first print window
+    openPrintWindow(receiptData, 'Copy 1', () => {
+      // After first window closes, open second window
+      notify.info("📄 First copy completed. Opening second copy...", { duration: 2000 });
+      setTimeout(() => {
+        openPrintWindow(receiptData, 'Copy 2', () => {
+          notify.success("📄📄 Both receipt copies completed!", {
+            duration: 3000
+          });
+        });
+      }, 500);
+    });
+  };
+
+  // Add this function to build receipt data:
+  const buildReceiptData = () => {
+    return {
+      header: {
+        title: 'AKOYA WATER PARK',
+        timestamp: new Date().toLocaleString(),
+        cashier: cashierName,
+        orderId: `#${new Date().getTime().toString().slice(-6)}`
+      },
+      items: {
+        tickets: selected.map(t => ({
+          name: `${t.category} - ${t.subcategory}`,
+          quantity: mode === "new" ? normalizedTicketCounts[t.id] : 1,
+          price: t.price,
+          total: mode === "new" ? (normalizedTicketCounts[t.id] * t.price) : t.price
+        })),
+        meals: Object.entries(mealCounts).map(([id, qty]) => {
+          const meal = meals.find(m => m.id === parseInt(id));
+          return {
+            name: meal?.name || 'Unknown Meal',
+            quantity: qty,
+            price: meal?.price || 0,
+            total: (meal?.price || 0) * qty
+          };
+        })
+      },
+      totals: {
+        ticketTotal,
+        mealTotal,
+        discountAmount,
+        finalTotal
+      },
+      payments: selectedMethods
+        .filter(method => method !== 'discount' && getAmount(method) > 0)
+        .map(method => ({
+          method: getPaymentMethodDisplayName(method),
+          amount: getAmount(method)
+        }))
+    };
+  };
+
+  // Add this helper function for payment method display names:
+  const getPaymentMethodDisplayName = (method) => {
+    switch(method) {
+      case 'visa_bank': return 'VISA BANK';
+      case 'visa_other': return 'VISA OTHER';
+      case 'vodafone_cash': return 'VODAFONE CASH';
+      default: return method.replace("_", " ").toUpperCase();
+    }
+  };
+
+  // 1. Add this validateDiscount function after your component constants
+  const validateDiscount = (value) => {
+    // Convert input to number, default to 0 if empty/invalid
+    const inputValue = value === '' ? 0 : Number(value);
+    
+    // Ensure discount doesn't exceed the subtotal
+    const subtotal = ticketTotal + mealTotal;
+    const validDiscount = Math.min(Math.max(0, inputValue), subtotal);
+    
+    return validDiscount;
+  };
+
+  // Add the renderPaymentField function here (BEFORE the return statement):
   const renderPaymentField = (method) => {
     // Single payment method (excluding discount) shows the final total
     const isOnlyPaymentMethod = selectedMethods.filter(m => m !== 'discount').length === 1;
@@ -363,10 +420,20 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       ? finalTotal.toFixed(2) 
       : (currentAmount === 0 ? "" : currentAmount.toString());
     
+    // Create a user-friendly label
+    const getMethodLabel = (method) => {
+      switch(method) {
+        case 'visa_bank': return 'VISA BANK';
+        case 'visa_other': return 'VISA OTHER';
+        case 'vodafone_cash': return 'VODAFONE CASH';
+        default: return method.replace("_", " ").toUpperCase();
+      }
+    };
+    
     return (
       <TextField
         key={method}
-        label={method.replace("_", " ").toUpperCase()}
+        label={getMethodLabel(method)}
         type="number"
         inputProps={{ step: "any", min: 0 }}
         value={displayValue}
@@ -380,18 +447,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         sx={{ flexBasis: "calc(50% - 8px)", flexGrow: 1, mb: 1 }}
       />
     );
-  };
-
-  // 1. Add this validateDiscount function after your component constants
-  const validateDiscount = (value) => {
-    // Convert input to number, default to 0 if empty/invalid
-    const inputValue = value === '' ? 0 : Number(value);
-    
-    // Ensure discount doesn't exceed the subtotal
-    const subtotal = ticketTotal + mealTotal;
-    const validDiscount = Math.min(Math.max(0, inputValue), subtotal);
-    
-    return validDiscount;
   };
 
   return (
@@ -531,153 +586,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             Clear
           </Button>
         </Box>
-
-        {/* Manual Print Button */}
-        <Box mt={1} display="flex" justifyContent="flex-end">
-          <Button
-            startIcon={<PrintIcon />}
-            size="small"
-            onClick={handlePrint}
-            disabled={!hasItems}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            Print Receipt
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Receipt Template (hidden until printing) */}
-      <Box
-        ref={receiptRef}
-        sx={{
-          display: 'none',
-          width: '80mm',
-          padding: '3mm',
-          fontFamily: 'monospace',
-          fontSize: '9pt',
-          backgroundColor: 'white',
-          color: 'black',
-          '@media print': {
-            display: 'block',
-            margin: 0,
-            padding: '3mm',
-          }
-        }}
-      >
-        {/* Receipt Header - Compact Version without Logo */}
-        <Box sx={{ textAlign: 'center', mb: 1 }}>
-          <Typography variant="subtitle1" sx={{ 
-            fontWeight: 'bold', 
-            fontSize: '12pt', 
-            letterSpacing: '0.5px',
-            mb: 0
-          }}>
-            AKOYA WATER PARK
-          </Typography>
-          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
-            {new Date().toLocaleString()}
-          </Typography>
-          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
-            Cashier: {cashierName}
-          </Typography>
-        </Box>
-        
-        <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: 'black' }} />
-        
-        {/* Receipt Content */}
-        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-          ORDER ITEMS
-        </Typography>
-        
-        {/* Print Tickets */}
-        {selected.map((t) => (
-          <Box key={`receipt-ticket-${t.id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
-            <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-              {t.category} - {t.subcategory} {mode === "new" ? `× ${normalizedTicketCounts[t.id]}` : ""}
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-              EGP {mode === "new" 
-                ? (normalizedTicketCounts[t.id] * t.price).toFixed(2)
-                : t.price.toFixed(2)
-              }
-            </Typography>
-          </Box>
-        ))}
-        
-        {/* Print Meals */}
-        {Object.entries(mealCounts).map(([id, qty]) => {
-          const meal = meals.find((m) => m.id === parseInt(id));
-          if (!meal) return null;
-          
-          return (
-            <Box key={`receipt-meal-${id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-                {meal.name} × {qty}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-                EGP {(meal.price * qty).toFixed(2)}
-              </Typography>
-            </Box>
-          );
-        })}
-        
-        <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: 'black' }} />
-        
-        {/* Totals */}
-        <Box sx={{ mb: 1 }}>
-          {ticketTotal > 0 && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Tickets:</Typography>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>EGP {ticketTotal.toFixed(2)}</Typography>
-            </Box>
-          )}
-          
-          {mealTotal > 0 && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Meals:</Typography>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>EGP {mealTotal.toFixed(2)}</Typography>
-            </Box>
-          )}
-          
-          {discountAmount > 0 && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>Discount:</Typography>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>-EGP {discountAmount.toFixed(2)}</Typography>
-            </Box>
-          )}
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, fontWeight: 'bold' }}>
-            <Typography variant="subtitle2" sx={{ fontSize: '10pt' }}>TOTAL:</Typography>
-            <Typography variant="subtitle2" sx={{ fontSize: '10pt' }}>EGP {finalTotal.toFixed(2)}</Typography>
-          </Box>
-        </Box>
-        
-        {/* Payment Details */}
-        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-          PAYMENT DETAILS
-        </Typography>
-        
-        {selectedMethods
-          .filter(method => method !== 'discount' && getAmount(method) > 0)
-          .map((method) => (
-            <Box key={`receipt-payment-${method}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-                {method.replace("_", " ").toUpperCase()}:
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '9pt' }}>
-                EGP {getAmount(method).toFixed(2)}
-              </Typography>
-            </Box>
-          ))}
-        
-        <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: 'black' }} />
-        
-        {/* Footer */}
-        <Box sx={{ textAlign: 'center', mt: 1 }}>
-          <Typography variant="body2" sx={{ fontSize: '8pt', fontStyle: 'italic' }}>
-            Thank you for visiting Akoya Water Park!
-          </Typography>
-        </Box>
       </Box>
 
       {/* Checkout Dialog */}
@@ -707,16 +615,56 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
             color="primary"
             sx={{ mt: 1, display: "flex", flexWrap: "wrap" }}
           >
-            {["visa", "cash", "vodafone_cash", "postponed", "discount"].map((method) => (
-              <ToggleButton 
-                key={method} 
-                value={method} 
-                aria-label={method}
-                sx={{ flex: "1 0 auto", minWidth: "100px" }}
-              >
-                {method.replace("_", " ").toUpperCase()}
-              </ToggleButton>
-            ))}
+            {/* Visa Bank */}
+            <ToggleButton 
+              value="visa_bank" 
+              aria-label="visa_bank"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              VISA BANK
+            </ToggleButton>
+            
+            {/* Visa Other */}
+            <ToggleButton 
+              value="visa_other" 
+              aria-label="visa_other"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              VISA OTHER
+            </ToggleButton>
+            
+            {/* Keep existing payment methods */}
+            <ToggleButton 
+              value="cash" 
+              aria-label="cash"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              CASH
+            </ToggleButton>
+            
+            <ToggleButton 
+              value="vodafone_cash" 
+              aria-label="vodafone_cash"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              VODAFONE CASH
+            </ToggleButton>
+            
+            <ToggleButton 
+              value="postponed" 
+              aria-label="postponed"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              POSTPONED
+            </ToggleButton>
+            
+            <ToggleButton 
+              value="discount" 
+              aria-label="discount"
+              sx={{ flex: "1 0 auto", minWidth: "100px" }}
+            >
+              DISCOUNT
+            </ToggleButton>
           </ToggleButtonGroup>
           
           {/* Discount field if selected */}

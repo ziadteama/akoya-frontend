@@ -17,6 +17,8 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { notify } from '../utils/toast';
 
 const UserRegistration = () => {
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+  
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -41,7 +43,13 @@ const UserRegistration = () => {
     if (!authToken) {
       notify.warning("Authentication required. Please log out and log back in.");
     }
-  }, []);
+    
+    // Check if baseUrl is available
+    if (!baseUrl) {
+      setError("API configuration missing. Please refresh the page.");
+      notify.error("API configuration missing");
+    }
+  }, [baseUrl]);
 
   const handleChange = (e) => {
     setFormData({
@@ -128,8 +136,6 @@ const UserRegistration = () => {
       if (!response.ok) {
         // Handle non-2xx responses
         const errorData = await response.json().catch(() => ({}));
-
-  const baseUrl = window.runtimeConfig?.apiBaseUrl;
         throw new Error(errorData.message || `Error: ${response.status}`);
       }
       

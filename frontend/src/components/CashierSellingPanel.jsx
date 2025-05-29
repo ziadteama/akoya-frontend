@@ -4,17 +4,25 @@ import axios from "axios";
 import TicketCategoryPanel from "../components/TicketCategoryPanel";
 import TicketSelectorPanel from "../components/TicketSelectorPanel";
 import CheckoutPanel from "../components/CheckoutPanel";
-// Remove config import
-// import config from '../config'; // Update path as needed
 import { notify } from '../utils/toast';
 
 const CashierSellingPanel = () => {
+  // Define baseUrl at the top of the component
+  const baseUrl = window.runtimeConfig?.apiBaseUrl;
+  
   const [types, setTypes] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [ticketCounts, setTicketCounts] = useState({});
 
   // Fetch ticket types with proper price handling
   useEffect(() => {
+    // Add check for baseUrl
+    if (!baseUrl) {
+      console.error("API base URL is not configured");
+      notify.error("API configuration missing. Please refresh the page.");
+      return;
+    }
+    
     const fetchTicketTypes = async () => {
       try {
         const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types?archived=false`);
@@ -42,7 +50,7 @@ const CashierSellingPanel = () => {
     };
     
     fetchTicketTypes();
-  }, []);
+  }, [baseUrl]); // Include baseUrl in the dependency array
 
   const handleSelectCategory = (category) => {
     if (!selectedCategories.includes(category)) {
@@ -54,7 +62,6 @@ const CashierSellingPanel = () => {
     setSelectedCategories((prev) => prev.filter((c) => c !== category));
     const updatedCounts = { ...ticketCounts };
 
-  const baseUrl = window.runtimeConfig?.apiBaseUrl;
     types
       .filter((t) => t.category === category)
       .forEach((t) => delete updatedCounts[t.id]);
@@ -64,11 +71,8 @@ const CashierSellingPanel = () => {
   const handleTicketCountChange = (typeId, value) => {
     const count = parseInt(value);
 
-  const baseUrl = window.runtimeConfig?.apiBaseUrl;
     if (count <= 0) {
       const updatedCounts = { ...ticketCounts };
-
-  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       delete updatedCounts[typeId];
       setTicketCounts(updatedCounts);
     } else {
@@ -77,10 +81,14 @@ const CashierSellingPanel = () => {
   };
 
   const handleCheckout = async (checkoutData) => {
+    // Check for baseUrl here too
+    if (!baseUrl) {
+      notify.error("API configuration missing. Unable to process checkout.");
+      return;
+    }
+    
     try {
       const response = await axios.post(`${baseUrl}/api/tickets/sell`, checkoutData);
-
-  const baseUrl = window.runtimeConfig?.apiBaseUrl;
       
       notify.success(`Order completed successfully! Order #${response.data.order_id || 'Created'}`);
       
@@ -123,6 +131,7 @@ const CashierSellingPanel = () => {
             onCheckout={handleCheckout}
             onClear={handleClear}
             mode="new"
+            baseUrl={baseUrl} // Pass baseUrl to CheckoutPanel
           />
         </Grid>
       </Grid>

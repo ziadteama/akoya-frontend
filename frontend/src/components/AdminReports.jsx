@@ -32,7 +32,7 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 // Import the OrdersTable component
 import OrdersTable from "./OrdersTable";
-import config from '../config';
+import config from '../../../config';
 
 const AdminReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());

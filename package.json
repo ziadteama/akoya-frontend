@@ -1,20 +1,45 @@
 {
   "name": "electron-app",
   "version": "1.0.0",
+  "description": "Akoya Smart Lock Electron Client",
+  "author": "Ziad Teama",
   "main": "main.mjs",
+  "type": "module",
   "scripts": {
     "start": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "dev:react": "cd frontend && npm run dev",
-    "dev:electron": "wait-on http://localhost:5173 && electron ."
+    "dev:electron": "wait-on http://localhost:5173 && electron .",
+    "build": "npm run build:react && electron-builder",
+    "build:react": "cd frontend && npm run build"
+  },
+  "dependencies": {
+    "react-to-print": "^3.1.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "electron": "^36.2.1",
-    "electron-builder": "^24.10.2",
+    "electron-builder": "^24.13.3",
     "wait-on": "^7.2.0"
   },
-  "type": "module",
-  "dependencies": {
-    "react-to-print": "^3.1.0"
+  "build": {
+    "appId": "com.akoya.smartlock",
+    "productName": "Akoya Smart Lock",
+    "files": [
+      "dist/**/*",
+      "main.mjs",
+      "preload.cjs"
+    ],
+    "extraResources": [
+      {
+        "from": "config.template.json",
+        "to": "config.template.json"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    }
   }
 }

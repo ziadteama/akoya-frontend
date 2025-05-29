@@ -15,7 +15,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
-import config from '../config';
+import config from '../../../config';
 import { notify } from '../utils/toast';
 
 const AccountantReports = () => {

@@ -33,7 +33,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import config from '../config';
+import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 const AdminMeals = () => {

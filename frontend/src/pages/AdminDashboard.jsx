@@ -43,7 +43,7 @@ import DateRangeIcon from '@mui/icons-material/DateRange';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import PrintIcon from '@mui/icons-material/Print';
-import config from '../config';
+import config from '../../../config';
 
 const drawerWidth = 240;
 

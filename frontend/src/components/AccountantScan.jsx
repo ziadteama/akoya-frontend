@@ -14,7 +14,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import axios from "axios";
 import CheckoutPanel from "./CheckoutPanel";
 import TicketCategoryPanel from "./TicketCategoryPanel";
-import config from '../config';
+import config from '../../../config';
 import ErrorBoundary from './ErrorBoundary';
 import { notify, confirmToast } from '../utils/toast';
 

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+      "build:config": "tsc -p tsconfig.config.json"
+
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -41,6 +43,12 @@
   },
   "build": {
     "appId": "com.akoya.waterpark",
+    "extraResources": [
+    {
+      "from": "dist-config/config.js",
+      "to": "config.js"
+    }
+  ],
     "productName": "Akoya Water Park",
     "files": [
       "build/**/*",

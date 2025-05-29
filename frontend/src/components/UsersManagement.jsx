@@ -38,7 +38,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import KeyIcon from '@mui/icons-material/Key';
-import config from '../config';
+import config from '../../../config';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);

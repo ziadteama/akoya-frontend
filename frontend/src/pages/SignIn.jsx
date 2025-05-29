@@ -15,7 +15,7 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 // import WavesIcon from "@mui/icons-material/Waves";
 // Import the Akoya logo
 import AkoyaLogo from '../assets/Akoya logo RGB-1.png';
-import config from '../config';
+import config from '../../../config';
 import { notify } from '../utils/toast';
 
 const SignIn = () => {

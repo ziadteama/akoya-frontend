@@ -5,7 +5,7 @@ import {
 } from "@mui/material";
 import { Add, Edit, Save, ArrowDownward } from "@mui/icons-material";
 import axios from "axios";
-import config from '../config';
+import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 const AccountantCategories = () => {

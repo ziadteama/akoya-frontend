@@ -42,7 +42,7 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import axios from 'axios';
-import config from '../config';
+import config from '../../../config';
 import { notify, confirmToast } from '../utils/toast';
 
 // Icons

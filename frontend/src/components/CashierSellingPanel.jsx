@@ -4,7 +4,7 @@ import axios from "axios";
 import TicketCategoryPanel from "../components/TicketCategoryPanel";
 import TicketSelectorPanel from "../components/TicketSelectorPanel";
 import CheckoutPanel from "../components/CheckoutPanel";
-import config from '../config';
+import config from '../config'; // Update path as needed
 import { notify } from '../utils/toast';
 
 const CashierSellingPanel = () => {
@@ -110,10 +110,10 @@ const CashierSellingPanel = () => {
         <Grid item xs={12} md={4}>
           <CheckoutPanel
             ticketCounts={ticketCounts}
-            types={types} // Pass all types with their prices
+            types={types}
             onCheckout={handleCheckout}
             onClear={handleClear}
-            mode="new" // This is important - specify "new" mode explicitly
+            mode="new"
           />
         </Grid>
       </Grid>

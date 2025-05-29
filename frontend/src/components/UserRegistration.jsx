@@ -12,7 +12,7 @@ import {
   CircularProgress
 } from "@mui/material";
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import config from '../config';
+import config from '../../../config';
 import { notify } from '../utils/toast';
 
 const UserRegistration = () => {

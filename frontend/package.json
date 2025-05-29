@@ -38,5 +38,33 @@
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.akoya.waterpark",
+    "productName": "Akoya Water Park",
+    "files": [
+      "build/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "icon": "assets/icons/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "win": {
+      "icon": "assets/icons/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "assets/icons",
+      "target": [
+        "deb",
+        "AppImage"
+      ]
+    }
   }
 }

@@ -1,8 +1,8 @@
 import React from "react";
 import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
-import PoolIcon from "@mui/icons-material/Pool";
 import { useNavigate } from "react-router-dom";
+import AkoyaLogo from '../assets/Akoya logo RGB-1.svg';
 
 const TopBar = () => {
   const navigate = useNavigate();
@@ -20,8 +20,17 @@ const TopBar = () => {
       sx={{ backgroundColor: "#00AEEF", boxShadow: "none" }}
     >
       <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: 3 }}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <PoolIcon sx={{ color: "#F0F9FF" }} />
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box
+            component="img"
+            src={AkoyaLogo}
+            alt="Akoya Logo"
+            sx={{
+              height: '80px',
+              filter: 'brightness(0) invert(1)',
+              display: 'block'
+            }}
+          />
           <Typography
             variant="h6"
             sx={{ fontWeight: "bold", color: "#F0F9FF" }}

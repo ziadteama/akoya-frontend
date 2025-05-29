@@ -11,7 +11,10 @@ import {
   CircularProgress
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import WavesIcon from "@mui/icons-material/Waves";
+// Removed WavesIcon import
+// import WavesIcon from "@mui/icons-material/Waves";
+// Import the Akoya logo
+import AkoyaLogo from '../assets/Akoya logo RGB-1.png';
 import config from '../config';
 import { notify } from '../utils/toast';
 
@@ -223,42 +226,22 @@ const SignIn = () => {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            mb: 3
+            mb: 3 // Keep this margin to maintain spacing between logo and form fields
           }}
         >
-          <Box 
-            sx={{ 
-              backgroundColor: "#00AEEF", 
-              borderRadius: "50%", 
-              p: 1.5,
-              mb: 2,
-              display: "flex",
-              boxShadow: "0 4px 10px rgba(0, 174, 239, 0.3)"
+          {/* Clean logo without circle background */}
+          <Box
+            component="img"
+            src={AkoyaLogo}
+            alt="Akoya Logo"
+            sx={{
+              width: '320px', // Further increased from 280px for better visibility 
+              height: 'auto',
+              mb: 0, // No bottom margin needed since we're removing the text
+              mt: 2, // Slightly increased top margin for better vertical centering
+              objectFit: 'contain',
             }}
-          >
-            <WavesIcon sx={{ fontSize: 40, color: "white" }} />
-          </Box>
-          <Typography 
-            component="h1" 
-            variant="h4" 
-            sx={{ 
-              color: "#005884",
-              fontWeight: "bold",
-              textAlign: "center"
-            }}
-          >
-            Akoya Water Park
-          </Typography>
-          <Typography 
-            variant="subtitle1"
-            sx={{ 
-              mt: 1, 
-              color: "#444",
-              fontWeight: "medium"
-            }}
-          >
-            Sign in to management system
-          </Typography>
+          />
         </Box>
         
         {!serverStatus && (

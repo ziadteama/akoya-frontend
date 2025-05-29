@@ -20,32 +20,32 @@ import { Link, useLocation } from "react-router-dom";
 const AccountantSidebar = ({ excludeRoutes = [], includeRoutes = [], basePath = "/accountant" }) => {
   const location = useLocation();
 
-  // Core accountant menu items - corrected the IDs to match what's expected
+  // Core accountant menu items
   const allMenuItems = [
     { text: "Reports", icon: <Event />, path: `${basePath}/accountant-reports`, id: "reports" },
     { text: "Scan Tickets", icon: <QrCodeScanner />, path: `${basePath}/accountant-scan`, id: "scan" },
     { text: "Manage Categories", icon: <Category />, path: `${basePath}/accountant-categories`, id: "categories" },
     { text: "Manage Meals", icon: <LunchDining />, path: `${basePath}/accountant-meals`, id: "meals" },
+    { text: "Sell Tickets", icon: <PointOfSale />, path: `${basePath}/sell-tickets`, id: "sell" }, // Added selling panel
     { text: "Register User", icon: <PersonAdd />, path: `${basePath}/register-user`, id: "register" },
   ];
 
-  // Extra menu items that can be used in other dashboards like cashier
+  // Extra menu items that can be used in other dashboards
   const additionalRoutes = [
-    { text: "Sell Tickets", icon: <PointOfSale />, path: `/cashier`, id: "sell" },
     { text: "Sales History", icon: <Download />, path: `/cashier/history`, id: "history" },
   ];
 
   // Start with base menu items
   let menuItems = [...allMenuItems];
 
-  // Exclude specific items - with console log for debugging
+  // Exclude specific items
   console.log("Excluding routes:", excludeRoutes);
   if (excludeRoutes && excludeRoutes.length > 0) {
     menuItems = menuItems.filter(item => !excludeRoutes.includes(item.id));
     console.log("After exclusion:", menuItems.map(item => item.id));
   }
 
-  // Include additional routes (e.g. for cashier)
+  // Include additional routes
   if (includeRoutes && includeRoutes.length > 0) {
     const includedItems = additionalRoutes.filter(item => includeRoutes.includes(item.id));
     menuItems = [...menuItems, ...includedItems];

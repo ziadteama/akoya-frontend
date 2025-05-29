@@ -12,6 +12,7 @@ import AccountantReports from "./components/AccountantReports";
 import AccountantScan from "./components/AccountantScan";
 import AccountantCategories from "./components/AccountantCategories";
 import AccountantMeals from "./components/AccountantMeals";
+import AccountantSelling from "./components/AccountantSelling"; // Add this import
 import UserRegistration from "./components/UserRegistration";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -31,15 +32,13 @@ function App() {
             <Route path="accountant-scan" element={<AccountantScan />} />
             <Route path="accountant-categories" element={<AccountantCategories />} />
             <Route path="accountant-meals" element={<AccountantMeals/>} />
+            <Route path="sell-tickets" element={<AccountantSelling />} /> {/* Add this route */}
             <Route path="register-user" element={<UserRegistration />} />
           </Route>
 
-          {/* Cashier Dashboard with Nested Routes */}
-          <Route path="/cashier" element={<CashierDashboard />}>
-            <Route path="scan" element={<AccountantScan />} />
-            <Route path="categories" element={<AccountantCategories />} />
-            <Route path="meals" element={<AccountantMeals />} />
-          </Route>
+          {/* Cashier Dashboard - Single route, no nested routes, no sidebar */}
+          <Route path="/cashier" element={<CashierDashboard />} />
+          <Route path="/cashier/*" element={<CashierDashboard />} />
 
           {/* Redirect unknown routes to login */}
           <Route path="*" element={<Navigate to="/" />} />

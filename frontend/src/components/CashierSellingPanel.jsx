@@ -14,6 +14,43 @@ const CashierSellingPanel = () => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [ticketCounts, setTicketCounts] = useState({});
 
+  // Update the category mapping to include all variations
+  const categoryMapping = {
+    'child': 'اطفال',
+    'kid': 'اطفال',
+    'kids': 'اطفال',
+    'children': 'اطفال',
+    'toddler': 'اطفال',
+    'baby': 'اطفال',
+    'infant': 'اطفال',
+    'adult': 'كبار',
+    'adults': 'كبار',
+    'grown': 'كبار',
+    'grownup': 'كبار',
+    'senior': 'جدود',
+    'seniors': 'جدود',
+    'elderly': 'جدود',
+    'elder': 'جدود',
+    'old': 'جدود',
+    'aged': 'جدود'
+  };
+
+  // Enhanced translate function with better logging
+  const translateCategory = (category) => {
+    if (!category) {
+      console.log('No category provided to translate');
+      return category;
+    }
+    
+    const lowerCategory = category.toLowerCase().trim();
+    const translated = categoryMapping[lowerCategory] || category;
+    
+    // Log the translation for debugging
+    console.log(`CashierPanel - Translating category: "${category}" -> "${translated}"`);
+    
+    return translated;
+  };
+
   // Fetch ticket types with proper price handling
   useEffect(() => {
     // Add check for baseUrl
@@ -27,15 +64,20 @@ const CashierSellingPanel = () => {
       try {
         const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types?archived=false`);
         
-        // Ensure all prices are valid numbers
+        // Ensure all prices are valid numbers and translate categories
         const typesWithValidPrices = data.map(type => ({
           ...type,
-          price: Number(type.price)
+          price: Number(type.price),
+          // Keep original category for backend compatibility
+          originalCategory: type.category,
+          // Add translated category for display
+          category: translateCategory(type.category)
         }));
         
-        console.log('Ticket types with prices:', 
+        console.log('Ticket types with Arabic categories:', 
           typesWithValidPrices.slice(0, 3).map(t => ({ 
             id: t.id, 
+            originalCategory: t.originalCategory,
             category: t.category, 
             subcategory: t.subcategory,
             price: t.price 
@@ -50,7 +92,7 @@ const CashierSellingPanel = () => {
     };
     
     fetchTicketTypes();
-  }, [baseUrl]); // Include baseUrl in the dependency array
+  }, [baseUrl]);
 
   const handleSelectCategory = (category) => {
     if (!selectedCategories.includes(category)) {
@@ -87,8 +129,20 @@ const CashierSellingPanel = () => {
       return;
     }
     
+    // Convert Arabic categories back to original English for backend
+    const modifiedCheckoutData = {
+      ...checkoutData,
+      tickets: checkoutData.tickets?.map(ticket => {
+        const originalType = types.find(t => t.id === ticket.type_id);
+        return {
+          ...ticket,
+          category: originalType?.originalCategory || ticket.category
+        };
+      })
+    };
+    
     try {
-      const response = await axios.post(`${baseUrl}/api/tickets/sell`, checkoutData);
+      const response = await axios.post(`${baseUrl}/api/tickets/sell`, modifiedCheckoutData);
       
       notify.success(`Order completed successfully! Order #${response.data.order_id || 'Created'}`);
       
@@ -122,6 +176,7 @@ const CashierSellingPanel = () => {
             selectedCategories={selectedCategories}
             ticketCounts={ticketCounts}
             onTicketCountChange={handleTicketCountChange}
+            translateCategory={translateCategory} // Pass the translation function
           />
         </Grid>
         <Grid item xs={12} md={4}>
@@ -131,7 +186,7 @@ const CashierSellingPanel = () => {
             onCheckout={handleCheckout}
             onClear={handleClear}
             mode="new"
-            baseUrl={baseUrl} // Pass baseUrl to CheckoutPanel
+            baseUrl={baseUrl}
           />
         </Grid>
       </Grid>

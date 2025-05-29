@@ -204,7 +204,8 @@ const AccountantScan = () => {
     }
   };
 
-  // Add new function for ticket validation
+  // Update the handleValidateTicket function to prevent errors
+
   const handleValidateTicket = async () => {
     const id = parseInt(validateInput.trim(), 10);
     if (!id || isNaN(id)) {
@@ -214,13 +215,28 @@ const AccountantScan = () => {
 
     try {
       setLoading(true);
+      
       const { data } = await axios.get(`${config.apiBaseUrl}/api/tickets/ticket/${id}`);
       console.log("Validation data:", data);
+      
+      // Check if data exists before proceeding
+      if (!data) {
+        notify.error("Ticket not found");
+        setValidatedTicket(null);
+        return;
+      }
       
       // Add timestamp to track when validation was done
       const enrichedData = {
         ...data,
-        validated_at: new Date().toISOString()
+        validated_at: new Date().toISOString(),
+        // Add fallback values for required fields to prevent null/undefined errors
+        price: Number(data.price || 0),
+        status: data.status || 'unknown',
+        created_at: data.created_at || new Date().toISOString(),
+        category: data.category || '',
+        subcategory: data.subcategory || '',
+        valid: typeof data.valid === 'boolean' ? data.valid : null
       };
       
       setValidatedTicket(enrichedData);
@@ -232,7 +248,14 @@ const AccountantScan = () => {
       });
       
       setValidateInput("");
-      notify.success("Ticket validated");
+      
+      if (data.valid === false) {
+        notify.warning("This ticket is invalid or has been tampered with");
+      } else if (data.status === 'sold') {
+        notify.warning("This ticket has already been sold");
+      } else {
+        notify.success("Ticket validated successfully");
+      }
     } catch (err) {
       console.error("Error validating ticket:", err);
       notify.error("Failed to validate ticket");
@@ -373,10 +396,12 @@ const AccountantScan = () => {
 
   // Render ticket status badge
   const renderStatusBadge = (status) => {
+    if (!status) return null;
+    
     let color = "default";
     let icon = null;
     
-    switch(status) {
+    switch(status.toLowerCase()) {
       case "available":
         color = "success";
         icon = <CheckCircleIcon fontSize="small" />;
@@ -392,7 +417,7 @@ const AccountantScan = () => {
     return (
       <Chip 
         icon={icon}
-        label={status.toUpperCase()} 
+        label={(status || "UNKNOWN").toUpperCase()} 
         color={color}
         size="small"
         sx={{ textTransform: 'capitalize' }}
@@ -636,7 +661,7 @@ const AccountantScan = () => {
                     <Typography variant="h5" gutterBottom>
                       Ticket #{validatedTicket.id}
                     </Typography>
-                    {renderStatusBadge(validatedTicket.status)}
+                    {validatedTicket.status && renderStatusBadge(validatedTicket.status)}
                   </Box>
                   
                   <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -650,12 +675,16 @@ const AccountantScan = () => {
                       
                       <Typography variant="subtitle2" color="text.secondary">Price</Typography>
                       <Typography variant="body1" sx={{ mb: 1 }}>
-                        {validatedTicket.price ? `EGP ${validatedTicket.price.toFixed(2)}` : '-'}
+                        {validatedTicket.price || validatedTicket.price === 0 
+                          ? `EGP ${Number(validatedTicket.price).toFixed(2)}` 
+                          : '-'}
                       </Typography>
                       
                       <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
                       <Typography variant="body1" sx={{ mb: 1 }}>
-                        {new Date(validatedTicket.created_at).toLocaleString()}
+                        {validatedTicket.created_at 
+                          ? new Date(validatedTicket.created_at).toLocaleString() 
+                          : 'N/A'}
                       </Typography>
                     </Grid>
                     
@@ -664,7 +693,9 @@ const AccountantScan = () => {
                         <>
                           <Typography variant="subtitle2" color="text.secondary">Sold At</Typography>
                           <Typography variant="body1" sx={{ mb: 1 }}>
-                            {validatedTicket.sold_at ? new Date(validatedTicket.sold_at).toLocaleString() : '-'}
+                            {validatedTicket.sold_at 
+                              ? new Date(validatedTicket.sold_at).toLocaleString() 
+                              : '-'}
                           </Typography>
                           
                           <Typography variant="subtitle2" color="text.secondary">Order ID</Typography>
@@ -681,7 +712,9 @@ const AccountantScan = () => {
                       
                       <Typography variant="subtitle2" color="text.secondary">Validated At</Typography>
                       <Typography variant="body1" sx={{ mb: 1 }}>
-                        {new Date(validatedTicket.validated_at).toLocaleString()}
+                        {validatedTicket.validated_at 
+                          ? new Date(validatedTicket.validated_at).toLocaleString() 
+                          : new Date().toLocaleString()}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -704,7 +737,7 @@ const AccountantScan = () => {
                 
                 <Grid container spacing={2}>
                   {validationHistory.map((ticket) => (
-                    <Grid item xs={12} md={6} key={`${ticket.id}-${ticket.validated_at}`}>
+                    <Grid item xs={12} md={6} key={`${ticket.id}-${ticket.validated_at || Date.now()}`}>
                       <Paper 
                         sx={{ 
                           p: 2, 
@@ -719,14 +752,16 @@ const AccountantScan = () => {
                         <Box>
                           <Typography variant="subtitle1">Ticket #{ticket.id}</Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {new Date(ticket.validated_at).toLocaleString()}
+                            {ticket.validated_at 
+                              ? new Date(ticket.validated_at).toLocaleString() 
+                              : new Date().toLocaleString()}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          {renderStatusBadge(ticket.status)}
+                          {ticket.status && renderStatusBadge(ticket.status)}
                           {ticket.category && (
                             <Typography variant="caption" sx={{ mt: 1 }}>
-                              {ticket.category} / {ticket.subcategory}
+                              {ticket.category}{ticket.subcategory ? ` / ${ticket.subcategory}` : ''}
                             </Typography>
                           )}
                         </Box>

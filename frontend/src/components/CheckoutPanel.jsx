@@ -23,7 +23,6 @@ import axios from "axios";
 import config from "../config";
 import { notify } from "../utils/toast";
 import { useReactToPrint } from 'react-to-print';
-import AkoyaLogo from '../assets/Akoya logo RGB-1.svg'; // Make sure this path is correct for your logo
 
 const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new", ticketIds = [], ticketDetails = [] }) => {
   const [open, setOpen] = useState(false);
@@ -614,7 +613,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Button>
         </Box>
 
-        {/* Add printer settings button */}
+        {/* Printer Settings button only */}
         {window.electron && (
           <Box mt={1} display="flex" justifyContent="flex-end">
             <Button
@@ -633,44 +632,27 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
       <Box
         ref={receiptRef}
         sx={{
-          display: 'none', // Hidden from view
-          width: '80mm', // Width of thermal receipt paper
-          padding: '5mm',
+          display: 'none',
+          width: '80mm',
+          padding: '3mm', // Reduced from 5mm
           fontFamily: 'monospace',
-          fontSize: '10pt',
+          fontSize: '9pt', // Reduced from 10pt
           '@media print': {
             display: 'block',
             margin: 0,
-            padding: '5mm',
+            padding: '3mm', // Reduced from 5mm
           }
         }}
       >
-        {/* Receipt Header */}
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          {/* Add a fallback for the logo */}
-          {AkoyaLogo ? (
-            <Box
-              component="img"
-              src={AkoyaLogo}
-              alt="Akoya Water Park"
-              sx={{ 
-                height: '20mm', 
-                maxWidth: '100%', 
-                objectFit: 'contain',
-                mb: 1
-              }}
-              onError={(e) => {
-                console.error("Logo failed to load");
-                e.target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '14pt', mb: 1 }}>
-              AKOYA WATER PARK
-            </Typography>
-          )}
-          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '12pt' }}>
-            Akoya Water Park
+        {/* Receipt Header - Compact Version without Logo */}
+        <Box sx={{ textAlign: 'center', mb: 1 }}>
+          <Typography variant="subtitle1" sx={{ 
+            fontWeight: 'bold', 
+            fontSize: '12pt', 
+            letterSpacing: '0.5px',
+            mb: 0
+          }}>
+            AKOYA WATER PARK
           </Typography>
           <Typography variant="body2" sx={{ fontSize: '8pt' }}>
             {new Date().toLocaleString()}
@@ -680,7 +662,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           </Typography>
         </Box>
         
-        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
         
         {/* Receipt Content */}
         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
@@ -689,7 +671,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         
         {/* Print Tickets */}
         {selected.map((t) => (
-          <Box key={`receipt-ticket-${t.id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+          <Box key={`receipt-ticket-${t.id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
             <Typography variant="body2" sx={{ fontSize: '9pt' }}>
               {t.category} - {t.subcategory} {mode === "new" ? `× ${normalizedTicketCounts[t.id]}` : ""}
             </Typography>
@@ -708,7 +690,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           if (!meal) return null;
           
           return (
-            <Box key={`receipt-meal-${id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Box key={`receipt-meal-${id}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
               <Typography variant="body2" sx={{ fontSize: '9pt' }}>
                 {meal.name} × {qty}
               </Typography>
@@ -719,7 +701,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           );
         })}
         
-        <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+        <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
         
         {/* Totals */}
         <Box sx={{ mb: 1 }}>
@@ -771,12 +753,9 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
         
         {/* Footer */}
-        <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Typography variant="body2" sx={{ fontSize: '9pt', fontStyle: 'italic' }}>
+        <Box sx={{ textAlign: 'center', mt: 1 }}>
+          <Typography variant="body2" sx={{ fontSize: '8pt', fontStyle: 'italic' }}>
             Thank you for visiting Akoya Water Park!
-          </Typography>
-          <Typography variant="body2" sx={{ fontSize: '8pt' }}>
-            www.akoyawaterpark.com
           </Typography>
         </Box>
       </Box>

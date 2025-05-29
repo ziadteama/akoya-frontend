@@ -37,7 +37,7 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
 
   return (
     <Paper sx={{ p: 3, bgcolor: "#E0F7FF", height: "100%" }}>
-      <Typography variant="h6" sx={{ color: "#00AEEF" }}>Categories</Typography>
+      <Typography variant="h6" sx={{ color: "#00AEEF" }}>باكدج</Typography>
       
       {selectedCategories.length > 0 && (
         <Box mt={2} mb={2}>

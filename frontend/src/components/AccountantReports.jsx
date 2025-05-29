@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
 import config from '../config';
+import { notify } from '../utils/toast';
 
 const AccountantReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -32,6 +33,7 @@ const AccountantReports = () => {
     
     if (useRange && fromDate.isAfter(toDate)) {
       setError("Start date cannot be after end date");
+      notify.warning("Start date cannot be after end date");
       return;
     }
     
@@ -55,19 +57,24 @@ const AccountantReports = () => {
         setReportData(Array.isArray(data.items) ? data.items : []);
         setSummary({
           totalTickets: data.summary.totalTickets || 0,
-          totalRevenue: data.summary.totalRevenue || 0
+          totalRevenue: data.summary.totalRevenue || 0,
+          totalDiscounts: data.summary.totalDiscounts || 0
         });
+        notify.success("Report data loaded successfully");
       } else {
         // Calculate summary on frontend
         const reportItems = Array.isArray(data) ? data : [];
         setReportData(reportItems);
         setSummary(calculateSummary(reportItems));
+        notify.success("Report data loaded successfully");
       }
     } catch (error) {
       console.error("Error fetching report:", error);
-      setError("Failed to fetch report data. Please try again.");
+      const errorMessage = "Failed to fetch report data. Please try again.";
+      setError(errorMessage);
+      notify.error(errorMessage);
       setReportData([]);
-      setSummary({ totalTickets: 0, totalRevenue: 0 });
+      setSummary({ totalTickets: 0, totalRevenue: 0, totalDiscounts: 0 });
     } finally {
       setLoading(false);
     }

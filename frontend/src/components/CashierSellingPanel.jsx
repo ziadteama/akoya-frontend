@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, useMediaQuery, useTheme } from "@mui/material";
 import axios from "axios";
 import TicketCategoryPanel from "../components/TicketCategoryPanel";
 import TicketSelectorPanel from "../components/TicketSelectorPanel";
@@ -7,6 +7,12 @@ import CheckoutPanel from "../components/CheckoutPanel";
 import { notify } from '../utils/toast';
 
 const CashierSellingPanel = () => {
+  // Add theme hooks for responsive design
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const isSquareScreen = useMediaQuery('(max-aspect-ratio: 4/3)');
+  const isExtraWideScreen = useMediaQuery(theme.breakpoints.up('xl'));
+  
   // Define baseUrl at the top of the component
   const baseUrl = window.runtimeConfig?.apiBaseUrl;
   
@@ -160,36 +166,85 @@ const CashierSellingPanel = () => {
   };
 
   return (
-    <Box sx={{ p: 3, backgroundColor: "#f8f9fa", minHeight: "100vh" }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={3}>
-          <TicketCategoryPanel
-            types={types}
-            selectedCategories={selectedCategories}
-            onSelectCategory={handleSelectCategory}
-            onRemoveCategory={handleRemoveCategory}
-          />
+    <Box sx={{ 
+      p: { 
+        xs: 1,
+        sm: 2,
+        md: isSquareScreen ? 2 : 1, 
+        lg: isSquareScreen ? 3 : 2
+      },
+      backgroundColor: "#f8f9fa", 
+      minHeight: "100vh",
+      overflowX: "hidden" 
+    }}>
+      {/* For square screens or mobile, stack the components vertically */}
+      {(isSmallScreen || isSquareScreen) ? (
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TicketCategoryPanel
+              types={types}
+              selectedCategories={selectedCategories}
+              onSelectCategory={handleSelectCategory}
+              onRemoveCategory={handleRemoveCategory}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TicketSelectorPanel
+              types={types}
+              selectedCategories={selectedCategories}
+              ticketCounts={ticketCounts}
+              onTicketCountChange={handleTicketCountChange}
+              translateCategory={translateCategory}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <CheckoutPanel
+              ticketCounts={ticketCounts}
+              types={types}
+              onCheckout={handleCheckout}
+              onClear={handleClear}
+              mode="new"
+              baseUrl={baseUrl}
+            />
+          </Grid>
         </Grid>
-        <Grid item xs={12} md={5}>
-          <TicketSelectorPanel
-            types={types}
-            selectedCategories={selectedCategories}
-            ticketCounts={ticketCounts}
-            onTicketCountChange={handleTicketCountChange}
-            translateCategory={translateCategory} // Pass the translation function
-          />
+      ) : (
+        /* More compact horizontal layout */
+        <Grid container spacing={1}>
+          {/* Reduced width for category panel */}
+          <Grid item xs={12} md={2.5} lg={2}>
+            <TicketCategoryPanel
+              types={types}
+              selectedCategories={selectedCategories}
+              onSelectCategory={handleSelectCategory}
+              onRemoveCategory={handleRemoveCategory}
+              compact={true}
+            />
+          </Grid>
+          {/* Increased width for ticket selector */}
+          <Grid item xs={12} md={5.5} lg={6}>
+            <TicketSelectorPanel
+              types={types}
+              selectedCategories={selectedCategories}
+              ticketCounts={ticketCounts}
+              onTicketCountChange={handleTicketCountChange}
+              translateCategory={translateCategory}
+              compact={true}
+            />
+          </Grid>
+          <Grid item xs={12} md={4} lg={4}>
+            <CheckoutPanel
+              ticketCounts={ticketCounts}
+              types={types}
+              onCheckout={handleCheckout}
+              onClear={handleClear}
+              mode="new"
+              baseUrl={baseUrl}
+              compact={true}
+            />
+          </Grid>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <CheckoutPanel
-            ticketCounts={ticketCounts}
-            types={types}
-            onCheckout={handleCheckout}
-            onClear={handleClear}
-            mode="new"
-            baseUrl={baseUrl}
-          />
-        </Grid>
-      </Grid>
+      )}
     </Box>
   );
 };

@@ -16,6 +16,7 @@ const TicketSelectorPanel = ({
   selectedCategories,
   ticketCounts,
   onTicketCountChange,
+  compact = false,
 }) => {
   // Subcategory mapping from English to Arabic
   const subcategoryMapping = {
@@ -100,24 +101,24 @@ const TicketSelectorPanel = ({
     return translated;
   };
 
-  // Filter types based on selected categories and ensure prices are valid
+  // Filter types based on selected categories
   const filteredTypes = types
     .filter((t) => selectedCategories.includes(t.category))
     .map((type) => ({
       ...type,
       price: Number(type.price || 0),
       displayCategory: translateCategory(type.originalCategory || type.category),
-      displaySubcategory: translateSubcategory(type.subcategory), // Translate subcategory
+      displaySubcategory: translateSubcategory(type.subcategory),
     }));
 
   if (filteredTypes.length === 0) {
     return (
-      <Paper sx={{ p: 3, bgcolor: "#E0F7FF", height: "100%" }}>
-        <Typography variant="h6" sx={{ color: "#00AEEF" }}>
+      <Paper sx={{ p: compact ? 1.5 : 3, bgcolor: "#E0F7FF", height: "100%" }}>
+        <Typography variant={compact ? "subtitle1" : "h6"} sx={{ color: "#00AEEF" }}>
           Ticket Selection
         </Typography>
-        <Box mt={2} p={2} bgcolor="#f5f5f5" borderRadius={1}>
-          <Typography align="center" color="textSecondary">
+        <Box mt={compact ? 1 : 2} p={compact ? 1 : 2} bgcolor="#f5f5f5" borderRadius={1}>
+          <Typography align="center" color="textSecondary" variant={compact ? "body2" : "body1"}>
             Select a category from the left panel to see available tickets.
           </Typography>
         </Box>
@@ -125,7 +126,7 @@ const TicketSelectorPanel = ({
     );
   }
 
-  // Group tickets by display category (Arabic)
+  // Group tickets by display category
   const groupedTypes = filteredTypes.reduce((grouped, type) => {
     const displayCategory = type.displayCategory;
     if (!grouped[displayCategory]) {
@@ -136,32 +137,33 @@ const TicketSelectorPanel = ({
   }, {});
 
   return (
-    <Paper sx={{ p: 3, bgcolor: "#E0F7FF", height: "100%" }}>
-      <Typography variant="h6" sx={{ color: "#00AEEF" }}>
+    <Paper sx={{ p: compact ? 1.5 : 3, bgcolor: "#E0F7FF", height: "100%" }}>
+      <Typography variant={compact ? "subtitle1" : "h6"} sx={{ color: "#00AEEF" }}>
         Ticket Selection
       </Typography>
 
       <Box
-        mt={2}
-        sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}
+        mt={compact ? 1 : 2}
+        sx={{ maxHeight: compact ? "calc(100vh - 180px)" : "calc(100vh - 250px)", overflowY: "auto" }}
       >
         {Object.keys(groupedTypes).map((displayCategory) => (
-          <Box key={displayCategory} mb={3}>
+          <Box key={displayCategory} mb={compact ? 1.5 : 3}>
             <Chip
-              label={displayCategory} // Category in Arabic
+              label={displayCategory}
+              size={compact ? "small" : "medium"}
               sx={{
                 mb: 1,
                 bgcolor: "#00AEEF",
                 color: "white",
                 fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif',
-                fontSize: "1rem",
+                fontSize: compact ? "0.875rem" : "1rem",
               }}
             />
-            <Grid container spacing={2}>
+            <Grid container spacing={compact ? 1 : 2}>
               {groupedTypes[displayCategory].map((type) => (
                 <Grid item xs={12} key={type.id}>
                   <Card variant="outlined" sx={{ bgcolor: "white" }}>
-                    <CardContent>
+                    <CardContent sx={{ py: compact ? 1 : 2, px: compact ? 1.5 : 2, "&:last-child": { pb: compact ? 1 : 2 } }}>
                       <Box
                         display="flex"
                         justifyContent="space-between"
@@ -169,42 +171,47 @@ const TicketSelectorPanel = ({
                       >
                         <Box>
                           <Typography
-                            variant="subtitle1"
+                            variant={compact ? "body2" : "subtitle1"}
                             fontWeight="bold"
                             sx={{
                               color: "#007EA7",
-                              fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif', // Better Arabic support
+                              fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif',
                             }}
                           >
-                            {type.displaySubcategory} {/* Display Arabic subcategory */}
+                            {type.displaySubcategory}
                           </Typography>
+                          {!compact && (
+                            <Typography
+                              variant="body2"
+                              color="textSecondary"
+                              sx={{ mb: 1 }}
+                            >
+                              {type.description || "No description"}
+                            </Typography>
+                          )}
                           <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            sx={{ mb: 1 }}
-                          >
-                            {type.description || "No description"}
-                          </Typography>
-                          <Typography
-                            variant="body1"
+                            variant={compact ? "body2" : "body1"}
                             fontWeight="bold"
                             color="#00AEEF"
                           >
                             EGP {type.price.toFixed(2)}
                           </Typography>
-                          {/* Show both Arabic and original subcategory for debugging */}
-                          <Typography
-                            variant="caption"
-                            color="textSecondary"
-                            sx={{ fontSize: "0.7rem" }}
-                          >
-                            Subcategory: {type.displaySubcategory}
-                            {type.subcategory !== type.displaySubcategory &&
-                              ` (Original: ${type.subcategory})`}
-                          </Typography>
+                          {/* Only show the debugging info in non-compact mode */}
+                          {!compact && (
+                            <Typography
+                              variant="caption"
+                              color="textSecondary"
+                              sx={{ fontSize: "0.7rem" }}
+                            >
+                              Subcategory: {type.displaySubcategory}
+                              {type.subcategory !== type.displaySubcategory &&
+                                ` (Original: ${type.subcategory})`}
+                            </Typography>
+                          )}
                         </Box>
                         <TextField
-                          label="Quantity"
+                          label={compact ? "" : "Quantity"}
+                          placeholder={compact ? "Qty" : ""}
                           type="number"
                           size="small"
                           inputProps={{ min: 0 }}
@@ -212,7 +219,7 @@ const TicketSelectorPanel = ({
                           onChange={(e) =>
                             onTicketCountChange(type.id, e.target.value)
                           }
-                          sx={{ width: "100px" }}
+                          sx={{ width: compact ? "70px" : "100px" }}
                         />
                       </Box>
                     </CardContent>
@@ -220,7 +227,7 @@ const TicketSelectorPanel = ({
                 </Grid>
               ))}
             </Grid>
-            <Divider sx={{ mt: 2 }} />
+            <Divider sx={{ mt: compact ? 1 : 2 }} />
           </Box>
         ))}
       </Box>

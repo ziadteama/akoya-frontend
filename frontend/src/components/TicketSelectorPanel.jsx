@@ -175,23 +175,22 @@ const TicketSelectorPanel = ({
 
   return (
     <Paper sx={{ 
-      p: compact ? 1.5 : 3,
+      p: compact ? 1 : 2, 
       bgcolor: "#E0F7FF", 
-      height: "100%",
-      maxHeight: "80vh", // Ensure it fits within the viewport
+      height: "90%",
       display: "flex",
       flexDirection: "column",
-      overflowY: "auto", // ✅ Add overflow to the main container
-      overflowX: "hidden", // Prevent horizontal scroll
+      overflow: "hidden"  // Prevent container overflow
     }}>
       <Typography 
-        variant={compact ? "h6" : "h5"}
+        variant={compact ? "subtitle2" : "h5"}  // Smaller text in compact
         sx={{ 
           color: "#00AEEF",
-          mb: compact ? 1 : 2,
+          mb: compact ? 0.5 : 2,  // Much less margin in compact
           textAlign: "center",
           fontWeight: 600,
-          flexShrink: 0, // Prevent header from shrinking
+          flexShrink: 0,
+          fontSize: compact ? "0.9rem" : "1.5rem"  // Explicit font size control
         }}
       >
         🎟️ Ticket Selection
@@ -200,27 +199,30 @@ const TicketSelectorPanel = ({
       <Box
         sx={{ 
           flex: 1,
-          minHeight: 0, // Important for flex children
-          pr: 1, // Add padding for scrollbar space
+          overflowY: "auto",
+          overflowX: "hidden",
+          minHeight: 0,
+          pr: compact ? 0.5 : 1,  // Less padding in compact
+          pb: compact ? 1 : 3,    // Less bottom padding in compact
         }}
       >
         {Object.keys(groupedTypes).map((displayCategory, categoryIndex) => (
-          <Box key={displayCategory} mb={compact ? 2 : 3}>
+          <Box key={displayCategory} mb={compact ? 1 : 3}>  {/* Much less margin in compact */}
             <Chip
               label={displayCategory}
-              size={compact ? "medium" : "large"}
+              size="small"  // Always small in compact mode
               sx={{
-                mb: 1.5,
+                mb: compact ? 0.5 : 1.5,  // Less margin in compact
                 bgcolor: "#00AEEF",
                 color: "white",
                 fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif',
-                fontSize: compact ? "0.9rem" : "1rem",
+                fontSize: compact ? "0.75rem" : "1rem",  // Smaller in compact
                 fontWeight: "bold",
-                height: compact ? "32px" : "40px"
+                height: compact ? "24px" : "40px"  // Much smaller in compact
               }}
             />
             
-            <Grid container spacing={compact ? 1 : 1.5}>
+            <Grid container spacing={compact ? 0.5 : 1.5}>  {/* Tighter spacing in compact */}
               {groupedTypes[displayCategory].map((type) => {
                 const currentCount = parseInt(ticketCounts[type.id] || 0);
                 
@@ -239,68 +241,81 @@ const TicketSelectorPanel = ({
                       }}
                     >
                       <CardContent sx={{ 
-                        py: compact ? 2 : 2.5,
-                        px: compact ? 2 : 3,
-                        "&:last-child": { pb: compact ? 2 : 2.5 }
+                        py: compact ? 1 : 2.5,  // Much less padding in compact
+                        px: compact ? 1.5 : 3,
+                        "&:last-child": { pb: compact ? 1 : 2.5 }
                       }}>
-                        {/* Ticket Information */}
-                        <Box mb={2}>
+                        {/* Ticket Information - More compact */}
+                        <Box mb={compact ? 1 : 2}>  {/* Less margin in compact */}
                           <Typography
-                            variant={compact ? "h6" : "h5"}
+                            variant={compact ? "body2" : "h5"}  // Much smaller in compact
                             fontWeight="bold"
                             sx={{
                               color: "#007EA7",
                               fontFamily: '"Segoe UI", Tahoma, Arial, sans-serif',
-                              mb: 1
+                              mb: compact ? 0.5 : 1,  // Less margin in compact
+                              fontSize: compact ? "0.9rem" : "1.5rem"  // Explicit size control
                             }}
                           >
                             {type.displaySubcategory}
                           </Typography>
                           
                           <Typography
-                            variant={compact ? "h6" : "h5"}
+                            variant={compact ? "body2" : "h5"}  // Much smaller in compact
                             fontWeight="bold"
                             color="#00AEEF"
-                            sx={{ mb: 1 }}
+                            sx={{ 
+                              mb: compact ? 0.5 : 1,  // Less margin in compact
+                              fontSize: compact ? "0.85rem" : "1.5rem"  // Explicit size control
+                            }}
                           >
                             EGP {type.price.toFixed(0)}
                           </Typography>
                           
                           {type.description && (
                             <Typography
-                              variant="body2"
+                              variant="caption"  // Smaller in compact
                               color="textSecondary"
-                              sx={{ mb: 1 }}
+                              sx={{ 
+                                mb: compact ? 0.5 : 1,
+                                fontSize: compact ? "0.7rem" : "0.875rem"
+                              }}
                             >
                               {type.description}
                             </Typography>
                           )}
                         </Box>
 
-                        {/* Quantity Controls */}
+                        {/* Quantity Controls - More compact */}
                         <Box 
                           display="flex" 
                           alignItems="center" 
                           justifyContent="space-between"
                           sx={{
                             bgcolor: "#f8f9fa",
-                            p: 1.5,
+                            p: compact ? 1 : 1.5,  // Less padding in compact
                             borderRadius: 2,
                             border: "1px solid #e9ecef"
                           }}
                         >
-                          <Typography variant="body1" fontWeight="medium">
-                            Quantity:
+                          <Typography 
+                            variant={compact ? "caption" : "body1"} 
+                            fontWeight="medium"
+                            sx={{ fontSize: compact ? "0.75rem" : "1rem" }}
+                          >
+                            Qty:
                           </Typography>
                           
-                          <Box display="flex" alignItems="center" gap={1}>
+                          <Box display="flex" alignItems="center" gap={compact ? 0.5 : 1}>
                             <IconButton
                               onClick={() => handleDecrement(type.id)}
                               disabled={currentCount <= 0}
-                              size={compact ? "small" : "medium"}
+                              size="small"  // Always small in compact
                               sx={{
                                 bgcolor: currentCount > 0 ? "#ff6b6b" : "#e9ecef",
                                 color: "white",
+                                width: compact ? "28px" : "36px",  // Smaller in compact
+                                height: compact ? "28px" : "36px",
                                 "&:hover": {
                                   bgcolor: currentCount > 0 ? "#fa5252" : "#e9ecef",
                                 },
@@ -310,60 +325,63 @@ const TicketSelectorPanel = ({
                                 }
                               }}
                             >
-                              <Remove fontSize={compact ? "small" : "medium"} />
+                              <Remove fontSize="small" />
                             </IconButton>
                             
                             <TextField
                               type="number"
-                              size={compact ? "small" : "medium"}
+                              size="small"
                               inputProps={{ 
                                 min: 0,
                                 style: { 
                                   textAlign: "center",
-                                  fontSize: compact ? "1rem" : "1.1rem",
-                                  fontWeight: "bold"
+                                  fontSize: compact ? "0.8rem" : "1.1rem",
+                                  fontWeight: "bold",
+                                  padding: compact ? "2px" : "4px"
                                 }
                               }}
                               value={currentCount}
                               onChange={(e) => handleDirectInput(type.id, e.target.value)}
                               sx={{ 
-                                width: compact ? "70px" : "80px",
+                                width: compact ? "50px" : "80px",  // Much smaller in compact
                                 '& .MuiOutlinedInput-root': {
-                                  height: compact ? "40px" : "48px",
-                                  bgcolor: "white"
+                                  height: compact ? "32px" : "48px"  // Smaller in compact
                                 }
                               }}
                             />
                             
                             <IconButton
                               onClick={() => handleIncrement(type.id)}
-                              size={compact ? "small" : "medium"}
+                              size="small"  // Always small in compact
                               sx={{
                                 bgcolor: "#51cf66",
                                 color: "white",
+                                width: compact ? "28px" : "36px",  // Smaller in compact
+                                height: compact ? "28px" : "36px",
                                 "&:hover": {
                                   bgcolor: "#40c057",
                                 }
                               }}
                             >
-                              <Add fontSize={compact ? "small" : "medium"} />
+                              <Add fontSize="small" />
                             </IconButton>
                           </Box>
                         </Box>
 
-                        {/* Show subtotal if quantity > 0 */}
+                        {/* Subtotal - More compact */}
                         {currentCount > 0 && (
                           <Box 
-                            mt={1.5} 
-                            p={1} 
+                            mt={compact ? 1 : 1.5}  // Less margin in compact
+                            p={compact ? 0.5 : 1}   // Less padding in compact
                             bgcolor="#e3f2fd" 
                             borderRadius={1}
                             textAlign="center"
                           >
                             <Typography 
-                              variant="body1" 
+                              variant={compact ? "caption" : "body1"}  // Smaller in compact
                               fontWeight="bold" 
                               color="#1976d2"
+                              sx={{ fontSize: compact ? "0.75rem" : "1rem" }}
                             >
                               Subtotal: EGP {(currentCount * type.price).toFixed(0)}
                             </Typography>
@@ -376,11 +394,11 @@ const TicketSelectorPanel = ({
               })}
             </Grid>
             
-            {/* Divider between categories */}
+            {/* Divider - More compact */}
             {categoryIndex < Object.keys(groupedTypes).length - 1 && (
               <Divider sx={{ 
-                mt: compact ? 2 : 3, 
-                mb: 1,
+                mt: compact ? 1 : 3,  // Much less margin in compact
+                mb: compact ? 0.5 : 1,
                 borderColor: "#00AEEF",
                 borderWidth: "1px"
               }} />

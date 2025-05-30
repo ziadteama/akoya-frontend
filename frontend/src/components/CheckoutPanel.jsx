@@ -323,10 +323,10 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         duration: 3000
       });
       
-      // Start the sequential print process
+      // Start the print process - FIXED to ensure exactly 2 copies
       setTimeout(() => {
-        startPrintSequence();
-      }, 1000);
+        openTwoPrintWindows();
+      }, 500);
       
     } catch (error) {
       console.error("Checkout error:", error);
@@ -334,26 +334,104 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     }
   };
 
-  // Add this new function to handle the print sequence:
-  const startPrintSequence = () => {
-    // Build receipt data
+  // NEW FUNCTION: Open exactly 2 print windows simultaneously
+  const openTwoPrintWindows = () => {
     const receiptData = buildReceiptData();
     
-    // Open first print window
-    openPrintWindow(receiptData, 'Copy 1', () => {
-      // After first window closes, open second window
-      notify.info("📄 First copy completed. Opening second copy...", { duration: 2000 });
+    notify.info("📄 Opening two print windows...", { duration: 2000 });
+    
+    // Open both windows at the same time with a small delay between them
+    const printWindow1 = openSinglePrintWindow(receiptData, 'Copy 1');
+    
+    setTimeout(() => {
+      const printWindow2 = openSinglePrintWindow(receiptData, 'Copy 2');
+      
+      // Show completion message after both windows are processed
       setTimeout(() => {
-        openPrintWindow(receiptData, 'Copy 2', () => {
-          notify.success("📄📄 Both receipt copies completed!", {
-            duration: 3000
-          });
+        notify.success("📄📄 Both receipt copies have been sent to printer!", {
+          duration: 3000
         });
-      }, 500);
-    });
+      }, 2000);
+    }, 300); // Small delay between windows
   };
 
-  // Add this function to build receipt data:
+  // MODIFIED: Simplified single print window function
+  const openSinglePrintWindow = (receiptData, copyLabel) => {
+    const receiptHTML = generateReceiptHTML(receiptData, copyLabel);
+    
+    const printWindow = window.open('', '_blank', 'width=300,height=600,left=100,top=100');
+    
+    if (!printWindow) {
+      notify.error(`Print window blocked for ${copyLabel}. Please allow popups.`);
+      return null;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${copyLabel}</title>
+          <meta charset="UTF-8">
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { 
+              margin: 0; 
+              padding: 3mm; 
+              font-family: 'Courier New', monospace; 
+              font-size: 10pt; 
+              background: white; 
+              color: black; 
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptHTML}
+          <script>
+            let hasPrinted = false;
+            
+            window.onload = function() {
+              if (!hasPrinted) {
+                hasPrinted = true;
+                window.focus();
+                window.print();
+                
+                // Auto-close after printing
+                setTimeout(function() { 
+                  window.close(); 
+                }, 3000);
+              }
+            };
+            
+            // Handle print dialog completion
+            window.onafterprint = function() {
+              setTimeout(function() { 
+                window.close(); 
+              }, 1000);
+            };
+            
+            // Fallback: Force close after 10 seconds
+            setTimeout(function() {
+              if (!window.closed) {
+                window.close();
+              }
+            }, 10000);
+          </script>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    
+    notify.info(`📄 ${copyLabel} sent to printer...`, { duration: 1500 });
+    
+    return printWindow;
+  };
+
+  // REMOVE these old functions (they're causing the extra prints):
+  // - startPrintSequence
+  // - openPrintWindow (the old callback-based one)
+
+  // Add this new function to build receipt data:
   const buildReceiptData = () => {
     return {
       header: {
@@ -450,58 +528,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         sx={{ flexBasis: "calc(50% - 8px)", flexGrow: 1, mb: 1 }}
       />
     );
-  };
-
-  const openPrintWindow = (receiptData, copyLabel, onComplete) => {
-    const receiptHTML = generateReceiptHTML(receiptData, copyLabel);
-    
-    const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
-    
-    if (!printWindow) {
-      notify.error('Print window blocked. Please allow popups.');
-      if (onComplete) onComplete();
-      return;
-    }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Receipt - ${copyLabel}</title>
-          <meta charset="UTF-8">
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            body { margin: 0; padding: 3mm; font-family: 'Courier New', monospace; font-size: 10pt; background: white; color: black; }
-          </style>
-        </head>
-        <body>
-          ${receiptHTML}
-          <script>
-            window.onload = function() {
-              window.focus();
-              window.print();
-              setTimeout(function() { window.close(); }, 1000);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    notify.info(`📄 Printing ${copyLabel}...`, { duration: 2000 });
-    
-    const checkClosed = setInterval(() => {
-      if (printWindow.closed) {
-        clearInterval(checkClosed);
-        if (onComplete) onComplete();
-      }
-    }, 1000);
-    
-    setTimeout(() => {
-      if (!printWindow.closed) printWindow.close();
-      clearInterval(checkClosed);
-      if (onComplete) onComplete();
-    }, 10000);
   };
 
   const generateReceiptHTML = (data, copyLabel = '') => {

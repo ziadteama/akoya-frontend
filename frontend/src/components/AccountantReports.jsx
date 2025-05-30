@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   TextField,
   Paper,
@@ -56,6 +56,7 @@ const AccountantReports = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState({ totalTickets: 0, totalRevenue: 0 });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   const formatDisplayDate = (date) => date.format("MM/DD/YYYY");
   const formatApiDate = (date) => date.format("YYYY-MM-DD");
@@ -104,7 +105,9 @@ const AccountantReports = () => {
           
       const { data } = await axios.get(endpoint, { params });
       
+      // Check if the data includes summary from backend
       if (data && typeof data === 'object' && data.summary) {
+        // Backend provides summary
         setReportData(Array.isArray(data.items) ? data.items : []);
         setSummary({
           totalTickets: data.summary.totalTickets || 0,
@@ -113,6 +116,7 @@ const AccountantReports = () => {
         });
         notify.success("Orders report loaded successfully");
       } else {
+        // Calculate summary on frontend
         const reportItems = Array.isArray(data) ? data : [];
         setReportData(reportItems);
         setSummary(calculateSummary(reportItems));
@@ -185,6 +189,52 @@ const AccountantReports = () => {
     return () => clearTimeout(timer);
   }, [selectedDate, fromDate, toDate, useRange, baseUrl, reportMode]);
 
+  // Enhanced sidebar state management
+  useEffect(() => {
+    const handleSidebarChange = () => {
+      // Check multiple possible storage keys and states
+      const storedState = localStorage.getItem('sidebarOpen') || 
+                         localStorage.getItem('sidebar-open') ||
+                         localStorage.getItem('sidebarExpanded');
+      
+      // Handle different possible values
+      const isOpen = storedState === 'true' || storedState === true || storedState === '1';
+      setSidebarOpen(isOpen);
+      
+      console.log('Sidebar state changed:', isOpen); // Debug log
+    };
+    
+    // Initial check
+    handleSidebarChange();
+    
+    // Listen for storage changes (cross-tab)
+    window.addEventListener('storage', handleSidebarChange);
+    
+    // Listen for custom events (same tab)
+    window.addEventListener('sidebarToggle', handleSidebarChange);
+    window.addEventListener('sidebar-toggle', handleSidebarChange);
+    
+    // Listen for resize events that might affect sidebar
+    window.addEventListener('resize', handleSidebarChange);
+    
+    // Poll for changes every second as fallback (remove after debugging)
+    const pollInterval = setInterval(() => {
+      const currentState = localStorage.getItem('sidebarOpen') === 'true';
+      if (currentState !== sidebarOpen) {
+        setSidebarOpen(currentState);
+        console.log('Sidebar state polled and updated:', currentState);
+      }
+    }, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleSidebarChange);
+      window.removeEventListener('sidebarToggle', handleSidebarChange);
+      window.removeEventListener('sidebar-toggle', handleSidebarChange);
+      window.removeEventListener('resize', handleSidebarChange);
+      clearInterval(pollInterval);
+    };
+  }, [sidebarOpen]);
+
   const exportOrdersCSV = () => {
     if (reportData.length === 0) return;
 
@@ -202,63 +252,91 @@ const AccountantReports = () => {
       ? `Orders Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}\r\n\r\n`
       : `Orders Report for ${formatDisplayDate(selectedDate)}\r\n\r\n`;
 
-    csvContent += "Order ID,Order Date,User,Total Amount (EGP),Ticket Details,Meal Details,Payment Methods\r\n";
-    
-    reportData.forEach(order => {
-      const orderId = order.order_id || 'N/A';
-      const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A';
-      const userName = order.user_name || 'N/A';
-      const totalAmount = parseFloat(order.total_amount || 0).toFixed(2);
-      
-      let ticketDetails = '';
-      if (order.tickets && order.tickets.length > 0) {
-        const ticketInfoArray = order.tickets.map(t => {
-          const category = t.category || 'Unknown';
-          const subcategory = t.subcategory || 'Standard';
-          const price = parseFloat(t.sold_price || 0).toFixed(2);
-          const qty = t.quantity || 1;
-          const subtotal = (qty * parseFloat(t.sold_price || 0)).toFixed(2);
-          
-          return `${qty}x ${category}-${subcategory} @${price} = ${subtotal}`;
-        });
-        
-        ticketDetails = ticketInfoArray.join(' | ');
-      } else {
-        ticketDetails = 'No tickets';
-      }
-      
-      let mealDetails = '';
-      if (order.meals && order.meals.length > 0) {
-        const mealInfoArray = order.meals.map(m => {
-          const name = m.name || 'Unknown';
-          const price = parseFloat(m.price_at_order || 0).toFixed(2);
-          const qty = m.quantity || 1;
-          const subtotal = (qty * parseFloat(m.price_at_order || 0)).toFixed(2);
-          
-          return `${qty}x ${name} @${price} = ${subtotal}`;
-        });
-        
-        mealDetails = mealInfoArray.join(' | ');
-      } else {
-        mealDetails = 'No meals';
-      }
-      
-      const paymentMethods = order.payments && order.payments.length > 0 
-        ? order.payments.map(p => `${p.method || 'Unknown'}: ${parseFloat(p.amount || 0).toFixed(2)}`).join(' | ')
-        : 'No payments';
-      
-      csvContent += `${escapeCSV(orderId)},${escapeCSV(orderDate)},${escapeCSV(userName)},${escapeCSV(totalAmount)},${escapeCSV(ticketDetails)},${escapeCSV(mealDetails)},${escapeCSV(paymentMethods)}\r\n`;
-    });
-    
-    csvContent += `\r\n\r\nSUMMARY REPORT\r\n`;
+    csvContent += `SUMMARY REPORT\r\n`;
     csvContent += `Total Orders,${reportData.length}\r\n`;
     csvContent += `Total Revenue (EGP),${summary.totalRevenue.toFixed(2)}\r\n`;
     csvContent += `Total Discounts (EGP),${(summary.totalDiscounts || 0).toFixed(2)}\r\n`;
     csvContent += `Total Tickets,${summary.totalTickets}\r\n`;
 
+    // Get total tickets by category
+    const ticketsByCategory = {};
+    reportData.forEach(order => {
+      if (order.tickets && order.tickets.length > 0) {
+        order.tickets.forEach(ticket => {
+          const category = ticket.category || 'Unknown';
+          const subcategory = ticket.subcategory || 'Standard';
+          const key = `${category}-${subcategory}`;
+          
+          if (!ticketsByCategory[key]) {
+            ticketsByCategory[key] = {
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          
+          ticketsByCategory[key].quantity += (ticket.quantity || 1);
+          ticketsByCategory[key].revenue += (ticket.quantity || 1) * parseFloat(ticket.sold_price || 0);
+        });
+      }
+    });
+
+    csvContent += `\r\nTICKET BREAKDOWN\r\n`;
+    csvContent += `Category,Quantity,Revenue (EGP)\r\n`;
+    Object.entries(ticketsByCategory).forEach(([category, data]) => {
+      csvContent += `${escapeCSV(category)},${data.quantity},${data.revenue.toFixed(2)}\r\n`;
+    });
+
+    // Get total meals
+    const mealsByType = {};
+    reportData.forEach(order => {
+      if (order.meals && order.meals.length > 0) {
+        order.meals.forEach(meal => {
+          const name = meal.name || 'Unknown';
+          
+          if (!mealsByType[name]) {
+            mealsByType[name] = {
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          
+          mealsByType[name].quantity += (meal.quantity || 1);
+          mealsByType[name].revenue += (meal.quantity || 1) * parseFloat(meal.price_at_order || 0);
+        });
+      }
+    });
+
+    csvContent += `\r\nMEAL BREAKDOWN\r\n`;
+    csvContent += `Meal Type,Quantity,Revenue (EGP)\r\n`;
+    Object.entries(mealsByType).forEach(([mealName, data]) => {
+      csvContent += `${escapeCSV(mealName)},${data.quantity},${data.revenue.toFixed(2)}\r\n`;
+    });
+
+    // Payment method breakdown
+    const paymentsByMethod = {};
+    reportData.forEach(order => {
+      if (order.payments && order.payments.length > 0) {
+        order.payments.forEach(payment => {
+          const method = payment.method || 'Unknown';
+          
+          if (!paymentsByMethod[method]) {
+            paymentsByMethod[method] = 0;
+          }
+          
+          paymentsByMethod[method] += parseFloat(payment.amount || 0);
+        });
+      }
+    });
+
+    csvContent += `\r\nPAYMENT METHOD BREAKDOWN\r\n`;
+    csvContent += `Payment Method,Total Amount (EGP)\r\n`;
+    Object.entries(paymentsByMethod).forEach(([method, amount]) => {
+      csvContent += `${escapeCSV(method)},${amount.toFixed(2)}\r\n`;
+    });
+
     const filename = useRange
-      ? `Orders_Report_${formatApiDate(fromDate)}_to_${formatApiDate(toDate)}.csv`
-      : `Orders_Report_${formatApiDate(selectedDate)}.csv`;
+      ? `Report_from_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`
+      : `Report_${selectedDate.format("YYYY-MM-DD")}.csv`;
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, filename);
@@ -285,9 +363,9 @@ const AccountantReports = () => {
       ? `Tickets Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}\r\n\r\n`
       : `Tickets Report for ${formatDisplayDate(selectedDate)}\r\n\r\n`;
 
-    // Tickets section
+    // Tickets section - removed money columns
     csvContent += "TICKETS REPORT\r\n";
-    csvContent += "Category,Subcategory,Quantity,Unit Price (EGP),Total Revenue (EGP),Sold By,First Sale,Last Sale\r\n";
+    csvContent += "Category,Subcategory,Quantity,First Sale,Last Sale\r\n";
     
     const ticketsByCategory = ticketsReportData.tickets.reduce((acc, ticket) => {
       if (!acc[ticket.category]) {
@@ -298,56 +376,46 @@ const AccountantReports = () => {
     }, {});
 
     Object.entries(ticketsByCategory).forEach(([category, tickets]) => {
-      let categoryTotal = 0;
       let categoryQuantity = 0;
       
       tickets.forEach(ticket => {
         const quantity = parseInt(ticket.quantity);
-        const unitPrice = parseFloat(ticket.unit_price).toFixed(2);
-        const totalRevenue = parseFloat(ticket.total_revenue);
-        const soldBy = ticket.sold_by_users || 'N/A';
         const firstSale = ticket.first_sale ? new Date(ticket.first_sale).toLocaleString() : 'N/A';
         const lastSale = ticket.last_sale ? new Date(ticket.last_sale).toLocaleString() : 'N/A';
         
-        csvContent += `${escapeCSV(category)},${escapeCSV(ticket.subcategory)},${quantity},${unitPrice},${totalRevenue.toFixed(2)},${escapeCSV(soldBy)},${escapeCSV(firstSale)},${escapeCSV(lastSale)}\r\n`;
+        csvContent += `${escapeCSV(category)},${escapeCSV(ticket.subcategory)},${quantity},${escapeCSV(firstSale)},${escapeCSV(lastSale)}\r\n`;
         
-        categoryTotal += totalRevenue;
         categoryQuantity += quantity;
       });
       
-      csvContent += `${escapeCSV(category)} SUBTOTAL,,${categoryQuantity},,${categoryTotal.toFixed(2)},,\r\n`;
+      csvContent += `${escapeCSV(category)} SUBTOTAL,,${categoryQuantity},,\r\n`;
       csvContent += `\r\n`;
     });
 
     csvContent += `TICKETS SUMMARY\r\n`;
     csvContent += `Total Tickets Sold,${ticketsReportData.summary.tickets.totalQuantity}\r\n`;
-    csvContent += `Total Tickets Revenue (EGP),${ticketsReportData.summary.tickets.totalRevenue.toFixed(2)}\r\n`;
     csvContent += `\r\n\r\n`;
 
-    // Meals section
+    // Meals section - removed money columns
     if (ticketsReportData.meals.length > 0) {
       csvContent += "MEALS REPORT\r\n";
-      csvContent += "Meal Name,Quantity,Unit Price (EGP),Total Revenue (EGP),Sold By,First Sale,Last Sale\r\n";
+      csvContent += "Meal Name,Quantity,First Sale,Last Sale\r\n";
       
       ticketsReportData.meals.forEach(meal => {
         const quantity = parseInt(meal.total_quantity);
-        const unitPrice = parseFloat(meal.unit_price).toFixed(2);
-        const totalRevenue = parseFloat(meal.total_revenue);
-        const soldBy = meal.sold_by_users || 'N/A';
         const firstSale = meal.first_sale ? new Date(meal.first_sale).toLocaleString() : 'N/A';
         const lastSale = meal.last_sale ? new Date(meal.last_sale).toLocaleString() : 'N/A';
         
-        csvContent += `${escapeCSV(meal.meal_name)},${quantity},${unitPrice},${totalRevenue.toFixed(2)},${escapeCSV(soldBy)},${escapeCSV(firstSale)},${escapeCSV(lastSale)}\r\n`;
+        csvContent += `${escapeCSV(meal.meal_name)},${quantity},${escapeCSV(firstSale)},${escapeCSV(lastSale)}\r\n`;
       });
 
       csvContent += `\r\nMEALS SUMMARY\r\n`;
       csvContent += `Total Meals Sold,${ticketsReportData.summary.meals.totalQuantity}\r\n`;
-      csvContent += `Total Meals Revenue (EGP),${ticketsReportData.summary.meals.totalRevenue.toFixed(2)}\r\n`;
       csvContent += `\r\n`;
     }
 
     csvContent += `GRAND TOTAL SUMMARY\r\n`;
-    csvContent += `Grand Total Revenue (EGP),${ticketsReportData.summary.grandTotal.toFixed(2)}\r\n`;
+    csvContent += `Total Items Sold,${ticketsReportData.summary.tickets.totalQuantity + ticketsReportData.summary.meals.totalQuantity}\r\n`;
 
     const filename = useRange
       ? `Tickets_Report_${formatApiDate(fromDate)}_to_${formatApiDate(toDate)}.csv`
@@ -384,13 +452,16 @@ const AccountantReports = () => {
     }
   };
 
+  // Enhanced calculation of totals to properly handle discounts
   const calculateSummary = (reportItems) => {
+    // Calculate totals excluding discount payments
     const totalRevenue = reportItems.reduce((sum, row) => 
       sum + (Number(row.total_amount) || 0), 0);
     
     const totalTickets = reportItems.reduce((sum, row) => 
       sum + ((row.tickets && row.tickets.length) || 0), 0);
     
+    // Calculate total discounts applied (for reporting)
     const totalDiscounts = reportItems.reduce((sum, row) => {
       if (row.payments && Array.isArray(row.payments)) {
         const discounts = row.payments
@@ -401,6 +472,7 @@ const AccountantReports = () => {
       return sum;
     }, 0);
     
+    // Return the complete summary object
     return {
       totalTickets,
       totalRevenue,
@@ -574,6 +646,9 @@ const AccountantReports = () => {
   const EnhancedMealsCard = ({ meals }) => {
     const mealsTotal = meals.reduce((sum, meal) => sum + parseFloat(meal.total_revenue), 0);
     const mealsQuantity = meals.reduce((sum, meal) => sum + parseInt(meal.total_quantity), 0);
+    
+    // Check if meals section is expanded
+    const isExpanded = expandedCategories['meals'];
 
     return (
       <Card sx={{ 
@@ -589,7 +664,14 @@ const AccountantReports = () => {
         }
       }}>
         <CardContent sx={{ p: 2 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          {/* Header with expand/collapse */}
+          <Box 
+            display="flex" 
+            justifyContent="space-between" 
+            alignItems="center" 
+            sx={{ cursor: 'pointer' }}
+            onClick={() => toggleCategoryExpansion('meals')}
+          >
             <Box display="flex" alignItems="center" gap={1.5}>
               <Avatar sx={{ 
                 bgcolor: '#FF9800', 
@@ -600,7 +682,11 @@ const AccountantReports = () => {
                 🍽️
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ color: "#FF9800", fontWeight: 700 }}>
+                <Typography variant="h6" sx={{ 
+                  color: "#FF9800", 
+                  fontWeight: 700,
+                  fontSize: '1.1rem'
+                }}>
                   Meals & Beverages
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
@@ -608,63 +694,91 @@ const AccountantReports = () => {
                 </Typography>
               </Box>
             </Box>
-            <Box textAlign="right">
-              <Typography variant="h5" sx={{ 
-                color: "#FF9800", 
-                fontWeight: 800,
-                lineHeight: 1
-              }}>
-                EGP {mealsTotal.toFixed(0)}
-              </Typography>
-              <Chip 
-                label={`${mealsQuantity} items`}
-                size="small"
-                sx={{ 
-                  bgcolor: '#FF980020',
-                  color: '#FF9800',
-                  fontWeight: 600,
-                  fontSize: '0.7rem'
-                }}
-              />
+            
+            <Box display="flex" alignItems="center" gap={2}>
+              <Box textAlign="right">
+                <Typography variant="h5" sx={{ 
+                  color: "#FF9800", 
+                  fontWeight: 800,
+                  lineHeight: 1
+                }}>
+                  EGP {mealsTotal.toFixed(0)}
+                </Typography>
+                <Chip 
+                  label={`${mealsQuantity} items`}
+                  size="small"
+                  sx={{ 
+                    bgcolor: '#FF980020',
+                    color: '#FF9800',
+                    fontWeight: 600,
+                    fontSize: '0.7rem'
+                  }}
+                />
+              </Box>
+              <IconButton size="small">
+                {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
             </Box>
           </Box>
           
-          <Grid container spacing={1.5}>
-            {meals.map((meal, index) => (
-              <Grid item xs={12} sm={6} md={4} key={index}>
-                <Paper sx={{ 
-                  p: 1.5, 
-                  bgcolor: 'rgba(255,255,255,0.8)', 
-                  borderRadius: 2,
-                  border: '1px solid #FF980030',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    bgcolor: 'rgba(255,255,255,0.95)',
-                    transform: 'scale(1.02)'
-                  }
-                }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#FF9800">
-                      {meal.meal_name}
-                    </Typography>
-                    <Chip 
-                      label={`${meal.total_quantity}x`}
-                      size="small"
-                      sx={{ bgcolor: '#FF9800', color: 'white' }}
-                    />
-                  </Box>
-                  
-                  <Typography variant="h6" fontWeight="bold" color="text.primary">
-                    EGP {parseFloat(meal.total_revenue).toFixed(0)}
-                  </Typography>
-                  
-                  <Typography variant="caption" color="textSecondary">
-                    @ EGP {parseFloat(meal.unit_price).toFixed(0)} each
-                  </Typography>
-                </Paper>
+          {/* Expandable content */}
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <Box mt={2}>
+              <Grid container spacing={1.5}>
+                {meals.map((meal, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Paper sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'rgba(255,255,255,0.8)', 
+                      borderRadius: 2,
+                      border: '1px solid #FF980030',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.95)',
+                        transform: 'scale(1.02)'
+                      }
+                    }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Typography variant="subtitle2" fontWeight="600" color="#FF9800">
+                          {meal.meal_name}
+                        </Typography>
+                        <Chip 
+                          label={`${meal.total_quantity}x`}
+                          size="small"
+                          sx={{ bgcolor: '#FF9800', color: 'white' }}
+                        />
+                      </Box>
+                      
+                      <Typography variant="h6" fontWeight="bold" color="text.primary">
+                        EGP {parseFloat(meal.total_revenue).toFixed(0)}
+                      </Typography>
+                      
+                      <Typography variant="caption" color="textSecondary">
+                        @ EGP {parseFloat(meal.unit_price).toFixed(0)} each
+                      </Typography>
+                      
+                      {/* Additional meal details */}
+                      <Box mt={1}>
+                        <Typography variant="caption" display="block" color="textSecondary">
+                          {meal.total_quantity}x @ EGP {parseFloat(meal.unit_price).toFixed(0)}
+                        </Typography>
+                        {meal.first_sale && (
+                          <Typography variant="caption" display="block" color="textSecondary">
+                            First Sale: {new Date(meal.first_sale).toLocaleDateString()}
+                          </Typography>
+                        )}
+                        {meal.last_sale && (
+                          <Typography variant="caption" display="block" color="textSecondary">
+                            Last Sale: {new Date(meal.last_sale).toLocaleDateString()}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
               </Grid>
-            ))}
-          </Grid>
+            </Box>
+          </Collapse>
         </CardContent>
       </Card>
     );
@@ -682,7 +796,7 @@ const AccountantReports = () => {
           flexShrink: 0
         }}>
           {/* Report Mode Toggle */}
-          <Box display="flex" justifyContent="center" alignItems="center" mb={1}>
+          <Box display="flex" justifyContent="center" alignItems="center" mb={2}>
             <ToggleButtonGroup
               value={reportMode}
               exclusive
@@ -783,15 +897,16 @@ const AccountantReports = () => {
           )}
         </Paper>
 
-        {/* Main Content */}
+        {/* Main Content - removed mb: 9 since bar is no longer fixed */}
         <Box sx={{ 
           flex: 1, 
           overflow: "hidden",
           mx: 1,
-          mb: 1
+          display: "flex",
+          flexDirection: "column"
         }}>
           <Paper sx={{ 
-            height: "100%",
+            flex: 1,
             display: "flex",
             flexDirection: "column",
             borderRadius: 2,
@@ -849,78 +964,113 @@ const AccountantReports = () => {
                 )
               )}
             </Box>
+          </Paper>
 
-            {/* Compact Footer Summary */}
-            <Paper sx={{ 
-              background: "linear-gradient(135deg, #E0F7FF 0%, #ffffff 100%)", 
-              borderRadius: 0,
-              p: 1.5,
-              flexShrink: 0,
-              borderTop: "2px solid #00AEEF"
-            }}>
-              {reportMode === 'orders' ? (
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={8}>
-                    <Box display="flex" gap={3} justifyContent="center" md="flex-start">
-                      <Typography variant="body2">
-                        <b>Orders:</b> {reportData.length}
+          {/* Bottom Summary Bar - Anchored at Bottom */}
+          <Paper sx={{ 
+            background: "linear-gradient(135deg, #E0F7FF 0%, #ffffff 100%)", 
+            borderRadius: 2,
+            p: 2,
+            mt: 1, // Add margin top for spacing
+            borderTop: "3px solid #00AEEF",
+            boxShadow: "0 -4px 20px rgba(0, 174, 239, 0.15)",
+            flexShrink: 0 // Prevent the bar from shrinking
+          }}>
+            {reportMode === 'orders' ? (
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={8}>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {/* First Row - Main Stats */}
+                    <Box display="flex" gap={4} justifyContent={{ xs: "center", md: "flex-start" }} flexWrap="wrap">
+                      <Typography variant="body1" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                        <b>📋 Orders:</b> {reportData.length}
                       </Typography>
-                      <Typography variant="body2">
-                        <b>Tickets:</b> {summary.totalTickets}
+                      <Typography variant="body1" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                        <b>🎟️ Tickets:</b> {summary.totalTickets}
                       </Typography>
-                      <Typography variant="body2">
-                        <b>Revenue:</b> EGP {summary.totalRevenue.toFixed(2)}
-                      </Typography>
-                      {summary.totalDiscounts > 0 && (
-                        <Typography variant="body2" sx={{ color: 'error.main' }}>
-                          <b>Discounts:</b> EGP {summary.totalDiscounts.toFixed(2)}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={4} display="flex" justifyContent="center">
-                    <Button
-                      variant="contained"
-                      disabled={reportData.length === 0 || loading}
-                      onClick={exportOrdersCSV}
-                      size="small"
-                      startIcon={<TrendingUpIcon />}
-                    >
-                      Export CSV
-                    </Button>
-                  </Grid>
-                </Grid>
-              ) : ticketsReportData ? (
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={8}>
-                    <Box display="flex" gap={3} justifyContent="center" flexWrap="wrap">
-                      <Typography variant="body2">
-                        <b>🎟️ Tickets:</b> {ticketsReportData.summary.tickets.totalQuantity} | EGP {ticketsReportData.summary.tickets.totalRevenue.toFixed(2)}
-                      </Typography>
-                      {ticketsReportData.summary.meals.totalQuantity > 0 && (
-                        <Typography variant="body2">
-                          <b>🍽️ Meals:</b> {ticketsReportData.summary.meals.totalQuantity} | EGP {ticketsReportData.summary.meals.totalRevenue.toFixed(2)}
-                        </Typography>
-                      )}
-                      <Typography variant="body2" sx={{ color: "#ff9800", fontWeight: 700 }}>
-                        <b>💰 Total:</b> EGP {ticketsReportData.summary.grandTotal.toFixed(2)}
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "#00AEEF", fontSize: '1.1rem' }}>
+                        <b>💰 Revenue:</b> EGP {summary.totalRevenue.toFixed(2)}
                       </Typography>
                     </Box>
-                  </Grid>
-                  <Grid item xs={12} md={4} display="flex" justifyContent="center">
-                    <Button
-                      variant="contained"
-                      disabled={!ticketsReportData || loading}
-                      onClick={exportTicketsCSV}
-                      size="small"
-                      startIcon={<TrendingUpIcon />}
-                    >
-                      Export CSV
-                    </Button>
-                  </Grid>
+                    
+                    {/* Second Row - Discounts (if any) */}
+                    {summary.totalDiscounts > 0 && (
+                      <Box display="flex" justifyContent={{ xs: "center", md: "flex-start" }}>
+                        <Typography variant="body1" sx={{ color: 'error.main', fontWeight: 700, fontSize: '1.1rem' }}>
+                          <b>💸 Total Discounts Applied:</b> EGP {summary.totalDiscounts.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Grid>
-              ) : null}
-            </Paper>
+                <Grid item xs={12} md={4} display="flex" justifyContent="center">
+                  <Button
+                    variant="contained"
+                    disabled={reportData.length === 0 || loading}
+                    onClick={exportOrdersCSV}
+                    size="medium"
+                    startIcon={<TrendingUpIcon />}
+                    sx={{
+                      background: "linear-gradient(45deg, #00AEEF 30%, #007EA7 90%)",
+                      boxShadow: "0 3px 5px 2px rgba(0, 174, 239, .3)",
+                      fontSize: '1rem',
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        background: "linear-gradient(45deg, #007EA7 30%, #005577 90%)",
+                      }
+                    }}
+                  >
+                    📊 Export CSV
+                  </Button>
+                </Grid>
+              </Grid>
+            ) : ticketsReportData ? (
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={8}>
+                  <Box display="flex" gap={4} justifyContent={{ xs: "center", md: "flex-start" }} flexWrap="wrap">
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: "#00AEEF", fontSize: '1.1rem' }}>
+                      <b>🎟️ Tickets:</b> {ticketsReportData.summary.tickets.totalQuantity}
+                    </Typography>
+                    {ticketsReportData.summary.meals.totalQuantity > 0 && (
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "#FF9800", fontSize: '1.1rem' }}>
+                      <b>🍽️ Meals:</b> {ticketsReportData.summary.meals.totalQuantity}
+                    </Typography>
+                    )}
+                    <Typography variant="body1" sx={{ color: "#ff9800", fontWeight: 800, fontSize: '1.2rem' }}>
+                      <b>📊 TOTAL ITEMS:</b> {ticketsReportData.summary.tickets.totalQuantity + ticketsReportData.summary.meals.totalQuantity}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={4} display="flex" justifyContent="center">
+                  <Button
+                    variant="contained"
+                    disabled={!ticketsReportData || loading}
+                    onClick={exportTicketsCSV}
+                    size="medium"
+                    startIcon={<TrendingUpIcon />}
+                    sx={{
+                      background: "linear-gradient(45deg, #FF9800 30%, #FF5722 90%)",
+                      boxShadow: "0 3px 5px 2px rgba(255, 152, 0, .3)",
+                      fontSize: '1rem',
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        background: "linear-gradient(45deg, #FF5722 30%, #E64A19 90%)",
+                      }
+                    }}
+                  >
+                    📊 Export CSV
+                  </Button>
+                </Grid>
+              </Grid>
+            ) : (
+              <Box display="flex" justifyContent="center" alignItems="center">
+                <Typography variant="body1" color="textSecondary" sx={{ fontSize: '1.1rem' }}>
+                  No data available for summary
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Box>
       </Box>

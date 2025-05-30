@@ -37,20 +37,32 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
 
   return (
     <Paper sx={{ 
-      p: compact ? 1.5 : 3, 
+      p: compact ? 1 : 2, 
       bgcolor: "#E0F7FF", 
-      height: "100%"
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      maxHeight: "80vh", // Ensure it fits within the viewport
+      display: "flex",
+      flexDirection: "column",
+      overflowY: "auto", // ✅ Add overflow to the main container
+      overflowX: "hidden", // Prevent horizontal scroll
     }}>
       <Typography 
-        variant={compact ? "subtitle1" : "h6"} 
-        sx={{ color: "#00AEEF" }}
+        variant={compact ? "subtitle1" : "h5"} 
+        sx={{ 
+          color: "#00AEEF", 
+          mb: compact ? 1 : 2,
+          textAlign: "center",
+          fontWeight: 600
+        }}
       >
-        باكدج
+       📋 باكدج 
       </Typography>
       
       {selectedCategories.length > 0 && (
-        <Box mt={compact ? 1 : 2} mb={compact ? 1 : 2}>
-          <Typography variant={compact ? "body2" : "subtitle2"} gutterBottom>
+        <Box mb={1}>
+          <Typography variant="caption" gutterBottom color="textSecondary">
             Selected:
           </Typography>
           <Box display="flex" flexWrap="wrap" gap={0.5}>
@@ -59,8 +71,13 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
                 key={cat}
                 label={cat}
                 onDelete={() => onRemoveCategory(cat)}
-                size={compact ? "small" : "medium"}
-                sx={{ bgcolor: "#00AEEF", color: "white" }}
+                size="small"
+                sx={{ 
+                  bgcolor: "#00AEEF", 
+                  color: "white", 
+                  fontSize: "0.7rem",
+                  height: "24px"  // Consistent height
+                }}
               />
             ))}
           </Box>
@@ -68,11 +85,12 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
       )}
       
       <List sx={{ 
-        maxHeight: compact ? "calc(100vh - 200px)" : "calc(100vh - 300px)", 
-        overflowY: "auto" 
+        flex: 1,
+        overflowY: "auto",
+        p: 0
       }}>
         {categories.length === 0 ? (
-          <Typography align="center" color="textSecondary" sx={{ p: compact ? 1 : 2 }}>
+          <Typography align="center" color="textSecondary" sx={{ p: 2 }}>
             No categories available
           </Typography>
         ) : (
@@ -82,12 +100,12 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
               key={cat.name}
               onClick={() => onSelectCategory(cat.name)}
               disabled={selectedCategories.includes(cat.name)}
-              dense={compact}
+              dense
               sx={{
                 bgcolor: selectedCategories.includes(cat.name) ? "rgba(0, 174, 239, 0.1)" : "white",
-                mb: 1,
+                mb: 0.5,
                 borderRadius: 1,
-                py: compact ? 0.5 : 1,
+                py: 1,  // More vertical padding for better clickability
                 "&:hover": {
                   bgcolor: "rgba(0, 174, 239, 0.2)",
                 },
@@ -95,13 +113,19 @@ const TicketCategoryPanel = ({ types, selectedCategories, onSelectCategory, onRe
             >
               <ListItemText
                 primary={cat.name}
-                secondary={`${cat.count} ticket types • EGP ${cat.minPrice.toFixed(2)} - ${cat.maxPrice.toFixed(2)}`}
+                secondary={
+                  <Box>
+                    <Typography variant="caption" display="block">
+                      {cat.count} types
+                    </Typography>
+                    <Typography variant="caption" color="primary">
+                      EGP {cat.minPrice.toFixed(0)}-{cat.maxPrice.toFixed(0)}
+                    </Typography>
+                  </Box>
+                }
                 primaryTypographyProps={{ 
-                  variant: compact ? 'body2' : 'body1',
+                  variant: 'body2',
                   fontWeight: 'medium'
-                }}
-                secondaryTypographyProps={{ 
-                  variant: compact ? 'caption' : 'body2'
                 }}
               />
             </ListItem>

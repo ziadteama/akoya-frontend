@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Box, Grid, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Grid, useMediaQuery, useTheme, Paper, Typography } from "@mui/material";
 import axios from "axios";
 import TicketCategoryPanel from "../components/TicketCategoryPanel";
 import TicketSelectorPanel from "../components/TicketSelectorPanel";
@@ -167,84 +167,128 @@ const CashierSellingPanel = () => {
 
   return (
     <Box sx={{ 
-      p: { 
-        xs: 1,
-        sm: 2,
-        md: isSquareScreen ? 2 : 1, 
-        lg: isSquareScreen ? 3 : 2
-      },
-      backgroundColor: "#f8f9fa", 
-      minHeight: "100vh",
-      overflowX: "hidden" 
+      height: "calc(100vh - 80px)", 
+      display: "flex",
+      flexDirection: "column",
+      backgroundColor: "#f8f9fa",
+      overflow: "hidden"
     }}>
-      {/* For square screens or mobile, stack the components vertically */}
-      {(isSmallScreen || isSquareScreen) ? (
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TicketCategoryPanel
-              types={types}
-              selectedCategories={selectedCategories}
-              onSelectCategory={handleSelectCategory}
-              onRemoveCategory={handleRemoveCategory}
-            />
+      {/* Header */}
+      <Paper 
+        elevation={1} 
+        sx={{ 
+          p: 1.5,  // Reduced padding
+          m: 1, 
+          backgroundColor: "#E0F7FF",
+          borderRadius: 2
+        }}
+      >
+        <Typography 
+          variant="h6"  // Smaller header
+          sx={{ 
+            color: "#00AEEF", 
+            fontWeight: 600, 
+            textAlign: "center"
+          }}
+        >
+          🎫 Ticket Sales System
+        </Typography>
+      </Paper>
+
+      {/* Main Content Area */}
+      <Box sx={{ 
+        flex: 1, 
+        p: 1, 
+        display: "flex",
+        gap: 1,
+        overflow: "hidden"
+      }}>
+        {/* Square/Mobile Layout - Adjusted proportions */}
+        {(isSmallScreen || isSquareScreen) ? (
+          <Box sx={{ 
+            width: "100%", 
+            display: "flex", 
+            flexDirection: "column", 
+            gap: 1,
+            height: "100%"
+          }}>
+            {/* Top Row: Give categories more space */}
+            <Box sx={{ 
+              display: "flex", 
+              gap: 1, 
+              height: "40%",  // Increased from 35%
+              minHeight: "280px"  // Increased min height
+            }}>
+              <Box sx={{ flex: 1.2 }}>  {/* More space for categories */}
+                <TicketCategoryPanel
+                  types={types}
+                  selectedCategories={selectedCategories}
+                  onSelectCategory={handleSelectCategory}
+                  onRemoveCategory={handleRemoveCategory}
+                  compact={true}
+                />
+              </Box>
+              <Box sx={{ flex: 0.8 }}>  {/* Less space for checkout */}
+                <CheckoutPanel
+                  ticketCounts={ticketCounts}
+                  types={types}
+                  onCheckout={handleCheckout}
+                  onClear={handleClear}
+                  mode="new"
+                  baseUrl={baseUrl}
+                  compact={true}
+                />
+              </Box>
+            </Box>
+            
+            {/* Bottom Row: Ticket Selector - more compact */}
+            <Box sx={{ flex: 1, minHeight: "250px" }}>  {/* Reduced min height */}
+              <TicketSelectorPanel
+                types={types}
+                selectedCategories={selectedCategories}
+                ticketCounts={ticketCounts}
+                onTicketCountChange={handleTicketCountChange}
+                translateCategory={translateCategory}
+                compact={true}
+              />
+            </Box>
+          </Box>
+        ) : (
+          /* Wide Screen Layout - Adjusted column proportions */
+          <Grid container spacing={1} sx={{ height: "100%" }}>
+            <Grid item xs={12} md={3.5} lg={3}>  {/* More space for categories */}
+              <TicketCategoryPanel
+                types={types}
+                selectedCategories={selectedCategories}
+                onSelectCategory={handleSelectCategory}
+                onRemoveCategory={handleRemoveCategory}
+                compact={true}
+              />
+            </Grid>
+            <Grid item xs={12} md={4.5} lg={5.5}>  {/* Less space for selector */}
+              <TicketSelectorPanel
+                types={types}
+                selectedCategories={selectedCategories}
+                ticketCounts={ticketCounts}
+                onTicketCountChange={handleTicketCountChange}
+                translateCategory={translateCategory}
+                compact={true}
+              />
+            </Grid>
+            <Grid item xs={12} md={4} lg={3.5}>  {/* Checkout remains same */}
+              <CheckoutPanel
+                ticketCounts={ticketCounts}
+                types={types}
+                onCheckout={handleCheckout}
+                onClear={handleClear}
+                mode="new"
+                baseUrl={baseUrl}
+                compact={true}
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12}>
-            <TicketSelectorPanel
-              types={types}
-              selectedCategories={selectedCategories}
-              ticketCounts={ticketCounts}
-              onTicketCountChange={handleTicketCountChange}
-              translateCategory={translateCategory}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <CheckoutPanel
-              ticketCounts={ticketCounts}
-              types={types}
-              onCheckout={handleCheckout}
-              onClear={handleClear}
-              mode="new"
-              baseUrl={baseUrl}
-            />
-          </Grid>
-        </Grid>
-      ) : (
-        /* More compact horizontal layout */
-        <Grid container spacing={1}>
-          {/* Reduced width for category panel */}
-          <Grid item xs={12} md={2.5} lg={2}>
-            <TicketCategoryPanel
-              types={types}
-              selectedCategories={selectedCategories}
-              onSelectCategory={handleSelectCategory}
-              onRemoveCategory={handleRemoveCategory}
-              compact={true}
-            />
-          </Grid>
-          {/* Increased width for ticket selector */}
-          <Grid item xs={12} md={5.5} lg={6}>
-            <TicketSelectorPanel
-              types={types}
-              selectedCategories={selectedCategories}
-              ticketCounts={ticketCounts}
-              onTicketCountChange={handleTicketCountChange}
-              translateCategory={translateCategory}
-              compact={true}
-            />
-          </Grid>
-          <Grid item xs={12} md={4} lg={4}>
-            <CheckoutPanel
-              ticketCounts={ticketCounts}
-              types={types}
-              onCheckout={handleCheckout}
-              onClear={handleClear}
-              mode="new"
-              baseUrl={baseUrl}
-              compact={true}
-            />
-          </Grid>
-        </Grid>
-      )}
+        )}
+      </Box>
     </Box>
   );
 };

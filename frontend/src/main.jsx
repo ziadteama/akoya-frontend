@@ -2,16 +2,19 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 
-fetch('/config.json')
-  .then((res) => res.json())
-  .then((config) => {
-    window.runtimeConfig = config;
-    startApp();
-  })
-  .catch((err) => {
-    console.error("❌ Failed to load config.json", err);
-    alert("Unable to start app: missing config.json");
-  });
+// Set fixed configuration directly instead of fetching config.json
+window.runtimeConfig = {
+  apiBaseUrl: 'http://192.168.1.245:3000',
+  defaultDateFormat: 'YYYY-MM-DD',
+  appName: 'Akoya Water Park',
+  features: {
+    enablePrinting: true,
+    enableExports: true
+  }
+};
+
+// Start app immediately with the fixed config
+startApp();
 
 function startApp() {
   createRoot(document.getElementById('root')).render(

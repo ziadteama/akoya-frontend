@@ -101,7 +101,7 @@ const UsersManagement = () => {
         return;
       }
       
-      const response = await axios.get('http://localhost:3000/api/users/all', {
+      const response = await axios.get(`${baseUrl}/api/users/all`, {
         headers: { 
           Authorization: `Bearer ${token}` 
         }
@@ -228,7 +228,7 @@ const UsersManagement = () => {
       }
       
       await axios.post(
-        'http://localhost:3000/api/users/register', 
+        `http://${baseUrl}/api/users/register`, 
         formUser,
         { headers: { Authorization: `Bearer ${token}` } }
       );

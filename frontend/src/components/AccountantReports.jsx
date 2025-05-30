@@ -17,6 +17,16 @@ import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
 import { notify } from '../utils/toast';
 
+// Set dayjs locale configuration to use MM/DD/YYYY format
+dayjs.locale({
+  ...dayjs.Ls.en,
+  formats: {
+    ...dayjs.Ls.en.formats,
+    L: "MM/DD/YYYY", // Default format
+    LL: "MMMM D, YYYY", // Long format
+  }
+});
+
 const AccountantReports = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [fromDate, setFromDate] = useState(dayjs().subtract(7, 'day'));
@@ -26,6 +36,10 @@ const AccountantReports = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState({ totalTickets: 0, totalRevenue: 0 });
+  
+  // Use MM/DD/YYYY for display but keep YYYY-MM-DD for API
+  const formatDisplayDate = (date) => date.format("MM/DD/YYYY");
+  const formatApiDate = (date) => date.format("YYYY-MM-DD");
 
   const baseUrl = window.runtimeConfig?.apiBaseUrl;
 
@@ -49,8 +63,8 @@ const AccountantReports = () => {
     
     try {
       const params = useRange
-        ? { startDate: fromDate.format("YYYY-MM-DD"), endDate: toDate.format("YYYY-MM-DD") }
-        : { date: selectedDate.format("YYYY-MM-DD") };
+        ? { startDate: formatApiDate(fromDate), endDate: formatApiDate(toDate) }
+        : { date: formatApiDate(selectedDate) };
           
       const endpoint = useRange
         ? `${baseUrl}/api/orders/range-report`
@@ -112,8 +126,8 @@ const AccountantReports = () => {
 
     let csvContent = "\uFEFF"; // BOM for Excel UTF-8
     csvContent += useRange
-      ? `Report from ${fromDate.format("YYYY-MM-DD")} to ${toDate.format("YYYY-MM-DD")}\r\n\r\n`
-      : `Report for ${selectedDate.format("YYYY-MM-DD")}\r\n\r\n`;
+      ? `Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}\r\n\r\n`
+      : `Report for ${formatDisplayDate(selectedDate)}\r\n\r\n`;
 
     // Create a CSV for orders
     csvContent += "Order ID,Order Date,User,Total Amount (EGP),Ticket Details,Meal Details,Payment Methods\r\n";
@@ -253,8 +267,8 @@ const AccountantReports = () => {
     });
 
     const filename = useRange
-      ? `Report_from_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`
-      : `Report_${selectedDate.format("YYYY-MM-DD")}.csv`;
+      ? `Report_from_${formatApiDate(fromDate)}_to_${formatApiDate(toDate)}.csv`
+      : `Report_${formatApiDate(selectedDate)}.csv`;
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, filename);
@@ -326,6 +340,7 @@ const AccountantReports = () => {
           Orders Report
         </Typography>
 
+        {/* Date picker section */}
         <Box display="flex" gap={4} mb={2}>
           <FormControlLabel
             control={
@@ -345,13 +360,25 @@ const AccountantReports = () => {
               label="From" 
               value={fromDate} 
               onChange={handleFromDateChange}
-              slotProps={{ textField: { sx: { backgroundColor: "#fff" } } }}
+              inputFormat="MM/DD/YYYY"
+              slotProps={{ 
+                textField: { 
+                  sx: { backgroundColor: "#fff" },
+                  placeholder: "MM/DD/YYYY"
+                } 
+              }}
             />
             <DatePicker 
               label="To" 
               value={toDate} 
               onChange={handleToDateChange}
-              slotProps={{ textField: { sx: { backgroundColor: "#fff" } } }} 
+              inputFormat="MM/DD/YYYY"
+              slotProps={{ 
+                textField: { 
+                  sx: { backgroundColor: "#fff" },
+                  placeholder: "MM/DD/YYYY"
+                } 
+              }}
             />
             <Button 
               variant="contained" 
@@ -367,8 +394,14 @@ const AccountantReports = () => {
             <DatePicker 
               label="Select Date" 
               value={selectedDate} 
-              onChange={(newVal) => newVal && setSelectedDate(newVal)} 
-              slotProps={{ textField: { sx: { backgroundColor: "#fff" } } }}
+              onChange={(newVal) => newVal && setSelectedDate(newVal)}
+              inputFormat="MM/DD/YYYY"
+              slotProps={{ 
+                textField: { 
+                  sx: { backgroundColor: "#fff" },
+                  placeholder: "MM/DD/YYYY"
+                } 
+              }}
             />
             <Button 
               variant="contained" 

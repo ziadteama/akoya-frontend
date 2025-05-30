@@ -355,11 +355,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     }, 300); // Small delay between windows
   };
 
-  // MODIFIED: Simplified single print window function
+  // MODIFIED: Minimal print window function
   const openSinglePrintWindow = (receiptData, copyLabel) => {
     const receiptHTML = generateReceiptHTML(receiptData, copyLabel);
     
-    const printWindow = window.open('', '_blank', 'width=300,height=600,left=100,top=100');
+    // Make window as small as possible and position in top-left
+    const printWindow = window.open('', '_blank', 'width=1,height=1,left=0,top=0,scrollbars=no,menubar=no,toolbar=no,location=no,status=no,resizable=no');
     
     if (!printWindow) {
       notify.error(`Print window blocked for ${copyLabel}. Please allow popups.`);
@@ -373,7 +374,10 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           <title>Receipt - ${copyLabel}</title>
           <meta charset="UTF-8">
           <style>
-            @page { size: 80mm auto; margin: 0; }
+            @page { 
+              size: 80mm auto; 
+              margin: 0; 
+            }
             body { 
               margin: 0; 
               padding: 3mm; 
@@ -381,6 +385,12 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
               font-size: 10pt; 
               background: white; 
               color: black; 
+              visibility: hidden; /* Hide content from user */
+            }
+            @media print {
+              body { 
+                visibility: visible; /* Show only when printing */
+              }
             }
           </style>
         </head>
@@ -389,32 +399,52 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           <script>
             let hasPrinted = false;
             
+            // Minimize window immediately
             window.onload = function() {
               if (!hasPrinted) {
                 hasPrinted = true;
-                window.focus();
-                window.print();
                 
-                // Auto-close after printing
+                // Move to top-left corner and minimize
+                window.moveTo(0, 0);
+                window.resizeTo(1, 1);
+                
+                // Focus and print immediately
+                window.focus();
+                
+                // Trigger print dialog immediately without delay
+                setTimeout(function() {
+                  window.print();
+                }, 100);
+                
+                // Auto-close quickly after printing
                 setTimeout(function() { 
-                  window.close(); 
-                }, 3000);
+                  if (!window.closed) {
+                    window.close(); 
+                  }
+                }, 2000); // Reduced time
               }
             };
             
-            // Handle print dialog completion
+            // Handle print dialog completion - close immediately
             window.onafterprint = function() {
-              setTimeout(function() { 
-                window.close(); 
+              window.close();
+            };
+            
+            // Handle if user cancels print dialog
+            window.onfocus = function() {
+              setTimeout(function() {
+                if (!window.closed) {
+                  window.close();
+                }
               }, 1000);
             };
             
-            // Fallback: Force close after 10 seconds
+            // Failsafe: Force close after 5 seconds
             setTimeout(function() {
               if (!window.closed) {
                 window.close();
               }
-            }, 10000);
+            }, 5000); // Reduced timeout
           </script>
         </body>
       </html>
@@ -422,7 +452,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
     
     printWindow.document.close();
     
-    notify.info(`📄 ${copyLabel} sent to printer...`, { duration: 1500 });
+    notify.info(`📄 ${copyLabel} print dialog opening...`, { duration: 1000 });
     
     return printWindow;
   };

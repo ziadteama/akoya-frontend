@@ -70,8 +70,14 @@ const CashierSellingPanel = () => {
       try {
         const { data } = await axios.get(`${baseUrl}/api/tickets/ticket-types?archived=false`);
         
+        // Filter out tickets with invalid prices (0, null, undefined, or empty)
+        const validTypes = data.filter(type => {
+          const price = Number(type.price);
+          return price > 1; // Only include tickets with price greater than 0
+        });
+        
         // Ensure all prices are valid numbers and translate categories
-        const typesWithValidPrices = data.map(type => ({
+        const typesWithValidPrices = validTypes.map(type => ({
           ...type,
           price: Number(type.price),
           // Keep original category for backend compatibility
@@ -80,7 +86,7 @@ const CashierSellingPanel = () => {
           category: translateCategory(type.category)
         }));
         
-        console.log('Ticket types with Arabic categories:', 
+        console.log('Valid ticket types with prices > 0:', 
           typesWithValidPrices.slice(0, 3).map(t => ({ 
             id: t.id, 
             originalCategory: t.originalCategory,

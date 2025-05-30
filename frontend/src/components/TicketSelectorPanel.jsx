@@ -124,9 +124,15 @@ const TicketSelectorPanel = ({
     }
   };
 
-  // Filter types based on selected categories
+  // Filter types based on selected categories and valid prices
   const filteredTypes = types
-    .filter((t) => selectedCategories.includes(t.category))
+    .filter((t) => {
+      // Check if category is selected AND price is valid
+      const hasValidPrice = Number(t.price || 0) > 0;
+      const isSelectedCategory = selectedCategories.includes(t.category);
+      
+      return isSelectedCategory && hasValidPrice;
+    })
     .map((type) => ({
       ...type,
       price: Number(type.price || 0),

@@ -495,14 +495,29 @@ const AccountantReports = () => {
   };
 
   // Enhanced category colors
-  const getCategoryColor = (category) => {
+  const getCategoryColor = () => {
+    // Return unified color scheme for all main categories
+    return {
+      primary: '#00AEEF', 
+      secondary: '#E0F7FF', 
+      icon: '🏷️'
+    };
+  };
+
+  // Enhanced subcategory colors - Only for subcategories (child, adult, grand)
+  const getSubcategoryColor = (subcategory) => {
     const colors = {
-      'اطفال': { primary: '#FF6B6B', secondary: '#FFE3E3', icon: '🧒' },
-      'كبار': { primary: '#4ECDC4', secondary: '#E0F9F7', icon: '👤' },
-      'جدود': { primary: '#45B7D1', secondary: '#E3F4FD', icon: '👴' },
+      'child': { primary: '#FF6B6B', secondary: '#FFE3E3', icon: '🧒' },
+      'adult': { primary: '#4ECDC4', secondary: '#E0F9F7', icon: '👤' },
+      'grand': { primary: '#45B7D1', secondary: '#E3F4FD', icon: '👴' },
       'default': { primary: '#6C5CE7', secondary: '#F0EFFF', icon: '🎫' }
     };
-    return colors[category] || colors.default;
+    
+    // Normalize the subcategory name - convert to lowercase and trim
+    const normalizedSubcategory = (subcategory || '').toString().toLowerCase().trim();
+    
+    // Return the matching color scheme or default
+    return colors[normalizedSubcategory] || colors.default;
   };
 
   const EnhancedTicketCategoryCard = ({ category, subcategories }) => {
@@ -513,24 +528,25 @@ const AccountantReports = () => {
       sum + parseInt(ticket.quantity), 0
     );
 
-    const colorScheme = getCategoryColor(category);
+    // Use unified category color for the main card header
+    const categoryColorScheme = getCategoryColor();
     const isExpanded = expandedCategories[category];
 
     return (
       <Card sx={{ 
         mb: 2, 
-        background: `linear-gradient(135deg, ${colorScheme.secondary} 0%, #ffffff 50%)`,
-        border: `2px solid ${colorScheme.primary}`,
+        background: `linear-gradient(135deg, ${categoryColorScheme.secondary} 0%, #ffffff 50%)`,
+        border: `2px solid ${categoryColorScheme.primary}`,
         borderRadius: 3,
         overflow: 'hidden',
         transition: 'all 0.3s ease',
         '&:hover': {
           transform: 'translateY(-2px)',
-          boxShadow: `0 8px 25px rgba(${colorScheme.primary.replace('#', '')}, 0.15)`
+          boxShadow: `0 8px 25px rgba(0, 174, 239, 0.15)`
         }
       }}>
         <CardContent sx={{ p: 2 }}>
-          {/* Header with expand/collapse */}
+          {/* Header with expand/collapse - Using unified category colors */}
           <Box 
             display="flex" 
             justifyContent="space-between" 
@@ -540,16 +556,16 @@ const AccountantReports = () => {
           >
             <Box display="flex" alignItems="center" gap={1.5}>
               <Avatar sx={{ 
-                bgcolor: colorScheme.primary, 
+                bgcolor: categoryColorScheme.primary, 
                 width: 40, 
                 height: 40,
                 fontSize: '1.2rem'
               }}>
-                {colorScheme.icon}
+                {categoryColorScheme.icon}
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ 
-                  color: colorScheme.primary, 
+                  color: categoryColorScheme.primary, 
                   fontWeight: 700,
                   fontSize: '1.1rem'
                 }}>
@@ -564,7 +580,7 @@ const AccountantReports = () => {
             <Box display="flex" alignItems="center" gap={2}>
               <Box textAlign="right">
                 <Typography variant="h5" sx={{ 
-                  color: colorScheme.primary, 
+                  color: categoryColorScheme.primary, 
                   fontWeight: 800,
                   lineHeight: 1
                 }}>
@@ -574,8 +590,8 @@ const AccountantReports = () => {
                   label={`${categoryQuantity} tickets`}
                   size="small"
                   sx={{ 
-                    bgcolor: colorScheme.primary + '20',
-                    color: colorScheme.primary,
+                    bgcolor: categoryColorScheme.primary + '20',
+                    color: categoryColorScheme.primary,
                     fontWeight: 600,
                     fontSize: '0.7rem'
                   }}
@@ -587,7 +603,7 @@ const AccountantReports = () => {
             </Box>
           </Box>
           
-          {/* Expandable content */}
+          {/* Expandable content - Subcategories with different colors */}
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Box mt={2}>
               <Grid container spacing={1.5}>
@@ -595,32 +611,50 @@ const AccountantReports = () => {
                   const subTotal = tickets.reduce((sum, ticket) => sum + parseFloat(ticket.total_revenue), 0);
                   const subQuantity = tickets.reduce((sum, ticket) => sum + parseInt(ticket.quantity), 0);
                   
+                  // Get subcategory-specific colors
+                  const subColorScheme = getSubcategoryColor(subcategory);
+                  
                   return (
                     <Grid item xs={12} sm={6} md={4} key={subcategory}>
                       <Paper sx={{ 
                         p: 1.5, 
                         bgcolor: 'rgba(255,255,255,0.8)', 
                         borderRadius: 2,
-                        border: `1px solid ${colorScheme.primary}30`,
+                        border: `2px solid ${subColorScheme.primary}`,
+                        background: `linear-gradient(135deg, ${subColorScheme.secondary} 0%, rgba(255,255,255,0.9) 100%)`,
                         transition: 'all 0.2s ease',
                         '&:hover': {
                           bgcolor: 'rgba(255,255,255,0.95)',
-                          transform: 'scale(1.02)'
+                          transform: 'scale(1.02)',
+                          boxShadow: `0 4px 15px ${subColorScheme.primary}30`
                         }
                       }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                          <Typography variant="subtitle2" fontWeight="600" color={colorScheme.primary}>
-                            {subcategory}
-                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Avatar sx={{ 
+                              bgcolor: subColorScheme.primary, 
+                              width: 24, 
+                              height: 24,
+                              fontSize: '0.8rem'
+                            }}>
+                              {subColorScheme.icon}
+                            </Avatar>
+                            <Typography variant="subtitle2" fontWeight="600" color={subColorScheme.primary}>
+                              {subcategory}
+                            </Typography>
+                          </Box>
                           <Chip 
                             label={`${subQuantity}x`}
                             size="small"
-                            color="primary"
-                            variant="outlined"
+                            sx={{ 
+                              bgcolor: subColorScheme.primary,
+                              color: 'white',
+                              fontWeight: 600
+                            }}
                           />
                         </Box>
                         
-                        <Typography variant="h6" fontWeight="bold" color="text.primary">
+                        <Typography variant="h6" fontWeight="bold" color={subColorScheme.primary}>
                           EGP {subTotal.toFixed(0)}
                         </Typography>
                         

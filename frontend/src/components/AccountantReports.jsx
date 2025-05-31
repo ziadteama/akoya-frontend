@@ -32,13 +32,13 @@ import { saveAs } from "file-saver";
 import OrdersTable from "./OrdersTable";
 import { notify } from '../utils/toast';
 
-// Set dayjs locale configuration to use MM/DD/YYYY format
+// Update dayjs locale configuration for DD/MM/YYYY format
 dayjs.locale({
   ...dayjs.Ls.en,
   formats: {
     ...dayjs.Ls.en.formats,
-    L: "MM/DD/YYYY",
-    LL: "MMMM D, YYYY",
+    L: "DD/MM/YYYY",
+    LL: "DD MMMM YYYY",
   }
 });
 
@@ -58,7 +58,8 @@ const AccountantReports = () => {
   const [summary, setSummary] = useState({ totalTickets: 0, totalRevenue: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
-  const formatDisplayDate = (date) => date.format("MM/DD/YYYY");
+  // Update format functions
+  const formatDisplayDate = (date) => date.format("DD/MM/YYYY");
   const formatApiDate = (date) => date.format("YYYY-MM-DD");
 
   const baseUrl = window.runtimeConfig?.apiBaseUrl;
@@ -260,7 +261,9 @@ const AccountantReports = () => {
         'other': 'بنوك اخرى',
         'visa': 'فيزا',
         'debit': 'بطاقة خصم',
-        'discount': 'خصم'
+        'discount': 'خصم',
+        'vodafone cash': 'فودافون كاش',
+        'vodafone_cash': 'فودافون كاش' 
       };
       
       const normalizedMethod = (method || '').toString().toLowerCase().trim();
@@ -377,11 +380,17 @@ const AccountantReports = () => {
       }
     });
 
+    // Calculate total payments (including discounts)
+    const totalPayments = Object.values(paymentsByMethod).reduce((sum, amount) => sum + amount, 0);
+
     csvContent += `\r\nPAYMENT METHOD BREAKDOWN\r\n`;
     csvContent += `Payment Method,Total Amount (EGP)\r\n`;
     Object.entries(paymentsByMethod).forEach(([method, amount]) => {
       csvContent += `${escapeCSV(method)},${amount.toFixed(2)}\r\n`;
     });
+
+    // Add total row for payment methods
+    csvContent += `TOTAL PAYMENTS,${totalPayments.toFixed(2)}\r\n`;
 
     const filename = useRange
       ? `Report_from_${fromDate.format("YYYY-MM-DD")}_to_${toDate.format("YYYY-MM-DD")}.csv`

@@ -470,6 +470,7 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         cashier: cashierName,
         orderId: `#${new Date().getTime().toString().slice(-6)}`
       },
+      description: description.trim(), // Add this line
       items: {
         tickets: selected.map(t => ({
           name: `${t.category} - ${t.subcategory}`,
@@ -562,75 +563,83 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
 
   const generateReceiptHTML = (data, copyLabel = '') => {
     return `
-      <div style="width: 74mm; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2;">
+      <div style="width: 74mm; font-family: 'Courier New', monospace; font-size: 11pt; line-height: 1.3; font-weight: bold;">
         <div style="text-align: center; margin-bottom: 5mm;">
-          <div style="font-weight: bold; font-size: 14pt; margin-bottom: 2mm;">${data.header.title}</div>
-          <div style="font-size: 9pt; margin-bottom: 1mm;">${data.header.timestamp}</div>
-          <div style="font-size: 9pt; margin-bottom: 1mm;">Cashier: ${data.header.cashier}</div>
-          <div style="font-size: 9pt; margin-bottom: 1mm;">Order ID: ${data.header.orderId}</div>
-          ${copyLabel ? `<div style="font-size: 8pt; font-weight: bold; color: #666; margin-top: 2mm; border: 1px solid #666; padding: 2px;">[${copyLabel}]</div>` : ''}
+          <div style="font-weight: 900; font-size: 16pt; margin-bottom: 2mm; letter-spacing: 1px;">${data.header.title}</div>
+          <div style="font-size: 10pt; margin-bottom: 1mm; font-weight: bold;">${data.header.timestamp}</div>
+          <div style="font-size: 10pt; margin-bottom: 1mm; font-weight: bold;">Cashier: ${data.header.cashier}</div>
+          <div style="font-size: 10pt; margin-bottom: 1mm; font-weight: bold;">Order ID: ${data.header.orderId}</div>
+          ${copyLabel ? `<div style="font-size: 9pt; font-weight: 900; color: #333; margin-top: 2mm; border: 2px solid #333; padding: 3px; background: #f0f0f0;">[${copyLabel}]</div>` : ''}
         </div>
         
-        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
         
-        <div style="font-weight: bold; margin: 2mm 0 1mm 0; font-size: 10pt;">ORDER ITEMS</div>
+        ${data.description && data.description.trim() ? `
+          <div style="margin: 3mm 0;">
+            <div style="font-weight: 900; margin-bottom: 2mm; font-size: 11pt; text-decoration: underline;">DESCRIPTION:</div>
+            <div style="font-size: 10pt; font-weight: bold; background: #f8f8f8; padding: 2mm; border: 1px solid #ccc; border-radius: 2px; word-wrap: break-word;">${data.description}</div>
+          </div>
+          <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
+        ` : ''}
+        
+        <div style="font-weight: 900; margin: 3mm 0 2mm 0; font-size: 12pt; text-decoration: underline;">ORDER ITEMS</div>
         
         ${data.items.tickets && data.items.tickets.length > 0 ? data.items.tickets.map(ticket => `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-            <span style="flex: 1; padding-right: 2mm;">${ticket.name}${ticket.quantity > 1 ? ` × ${ticket.quantity}` : ''}</span>
-            <span style="white-space: nowrap;">EGP ${(ticket.total || 0).toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold; padding: 1mm 0; border-bottom: 1px dotted #666;">
+            <span style="flex: 1; padding-right: 3mm;">${ticket.name}${ticket.quantity > 1 ? ` × ${ticket.quantity}` : ''}</span>
+            <span style="white-space: nowrap; font-weight: 900;">EGP ${(ticket.total || 0).toFixed(2)}</span>
           </div>
         `).join('') : ''}
         
         ${data.items.meals && data.items.meals.length > 0 ? data.items.meals.map(meal => `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-            <span style="flex: 1; padding-right: 2mm;">${meal.name} × ${meal.quantity}</span>
-            <span style="white-space: nowrap;">EGP ${(meal.total || 0).toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold; padding: 1mm 0; border-bottom: 1px dotted #666;">
+            <span style="flex: 1; padding-right: 3mm;">${meal.name} × ${meal.quantity}</span>
+            <span style="white-space: nowrap; font-weight: 900;">EGP ${(meal.total || 0).toFixed(2)}</span>
           </div>
         `).join('') : ''}
         
-        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
         
         ${data.totals.ticketTotal > 0 ? `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-            <span>Tickets:</span><span>EGP ${data.totals.ticketTotal.toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold;">
+            <span>Tickets Subtotal:</span><span style="font-weight: 900;">EGP ${data.totals.ticketTotal.toFixed(2)}</span>
           </div>
         ` : ''}
         
         ${data.totals.mealTotal > 0 ? `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-            <span>Meals:</span><span>EGP ${data.totals.mealTotal.toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold;">
+            <span>Meals Subtotal:</span><span style="font-weight: 900;">EGP ${data.totals.mealTotal.toFixed(2)}</span>
           </div>
         ` : ''}
         
         ${data.totals.discountAmount > 0 ? `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt; color: red;">
-            <span>Discount:</span><span>-EGP ${data.totals.discountAmount.toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold; color: #d32f2f;">
+            <span>Discount Applied:</span><span style="font-weight: 900;">-EGP ${data.totals.discountAmount.toFixed(2)}</span>
           </div>
         ` : ''}
         
-        <div style="border-top: 1px solid black; margin: 2mm 0;"></div>
+        <div style="border-top: 3px solid black; margin: 3mm 0;"></div>
         
-        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2mm; font-size: 11pt;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; margin-top: 3mm; font-size: 14pt; background: #f0f0f0; padding: 2mm; border: 2px solid black;">
           <span>TOTAL:</span><span>EGP ${data.totals.finalTotal.toFixed(2)}</span>
         </div>
         
-        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
         
-        <div style="font-weight: bold; margin: 2mm 0 1mm 0; font-size: 10pt;">PAYMENT DETAILS</div>
+        <div style="font-weight: 900; margin: 3mm 0 2mm 0; font-size: 12pt; text-decoration: underline;">PAYMENT DETAILS</div>
         
         ${data.payments && data.payments.length > 0 ? data.payments.map(payment => `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-            <span>${payment.method}:</span><span>EGP ${payment.amount.toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; font-weight: bold; padding: 1mm; background: #f8f8f8; border: 1px solid #ddd;">
+            <span style="font-weight: bold;">${payment.method}:</span><span style="font-weight: 900;">EGP ${payment.amount.toFixed(2)}</span>
           </div>
         `).join('') : ''}
         
-        <div style="border-top: 1px dashed black; margin: 2mm 0;"></div>
+        <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
         
-        <div style="text-align: center; margin-top: 3mm; font-size: 9pt; font-style: italic;">
-          <div>Thank you for visiting</div>
-          <div>Akoya Water Park!</div>
-          <div>Have a wonderful day! 🌊</div>
+        <div style="text-align: center; margin-top: 4mm; font-size: 10pt; font-weight: bold;">
+          <div style="margin-bottom: 1mm;">Thank you for visiting</div>
+          <div style="margin-bottom: 1mm; font-weight: 900;">Akoya Water Park!</div>
+          <div style="font-size: 11pt; font-weight: 900;">Have a wonderful day! 🌊</div>
         </div>
       </div>
     `;

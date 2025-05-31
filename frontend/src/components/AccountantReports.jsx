@@ -867,6 +867,477 @@ const AccountantReports = () => {
     );
   };
 
+  // New print function for orders
+  const printOrdersReport = () => {
+    if (reportData.length === 0) return;
+
+    // Payment method mapping function (same as CSV)
+    const mapPaymentMethod = (method) => {
+      const methodMappings = {
+        'postponed': 'آجل',
+        'الاهلي': 'بنك الاهلي و مصر',
+        'مصر': 'بنك الاهلي و مصر',
+        'الاهلي و مصر': 'بنك الاهلي و مصر',
+        'cash': 'نقدي',
+        'credit': 'فيزا',
+        'OTHER': 'بنوك اخرى',
+        'other': 'بنوك اخرى',
+        'visa': 'فيزا',
+        'debit': 'بطاقة خصم',
+        'discount': 'خصم'
+      };
+      
+      const normalizedMethod = (method || '').toString().toLowerCase().trim();
+      
+      if (methodMappings[normalizedMethod]) {
+        return methodMappings[normalizedMethod];
+      }
+      
+      if (normalizedMethod.includes('الاهلي') || normalizedMethod.includes('مصر')) {
+        return 'بنك الاهلي و مصر';
+      }
+      
+      if (normalizedMethod.includes('postponed') || normalizedMethod.includes('آجل')) {
+        return 'آجل';
+      }
+      
+      if (normalizedMethod.includes('cash') || normalizedMethod.includes('نقد')) {
+        return 'نقدي';
+      }
+      
+      if (normalizedMethod.includes('bank') || normalizedMethod.includes('بنك') || 
+          normalizedMethod.includes('card') || normalizedMethod.includes('بطاقة')) {
+        return 'بنوك اخرى';
+      }
+      
+      return method || 'غير محدد';
+    };
+
+    // Create print content
+    const reportTitle = useRange
+      ? `Orders Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}`
+      : `Orders Report for ${formatDisplayDate(selectedDate)}`;
+
+    // Calculate breakdowns
+    const ticketsByCategory = {};
+    reportData.forEach(order => {
+      if (order.tickets && order.tickets.length > 0) {
+        order.tickets.forEach(ticket => {
+          const category = ticket.category || 'Unknown';
+          const subcategory = ticket.subcategory || 'Standard';
+          const key = `${category}-${subcategory}`;
+          
+          if (!ticketsByCategory[key]) {
+            ticketsByCategory[key] = { quantity: 0, revenue: 0 };
+          }
+          
+          ticketsByCategory[key].quantity += (ticket.quantity || 1);
+          ticketsByCategory[key].revenue += (ticket.quantity || 1) * parseFloat(ticket.sold_price || 0);
+        });
+      }
+    });
+
+    const mealsByType = {};
+    reportData.forEach(order => {
+      if (order.meals && order.meals.length > 0) {
+        order.meals.forEach(meal => {
+          const name = meal.name || 'Unknown';
+          
+          if (!mealsByType[name]) {
+            mealsByType[name] = { quantity: 0, revenue: 0 };
+          }
+          
+          mealsByType[name].quantity += (meal.quantity || 1);
+          mealsByType[name].revenue += (meal.quantity || 1) * parseFloat(meal.price_at_order || 0);
+        });
+      }
+    });
+
+    const paymentsByMethod = {};
+    reportData.forEach(order => {
+      if (order.payments && order.payments.length > 0) {
+        order.payments.forEach(payment => {
+          const originalMethod = payment.method || 'Unknown';
+          const mappedMethod = mapPaymentMethod(originalMethod);
+          
+          if (!paymentsByMethod[mappedMethod]) {
+            paymentsByMethod[mappedMethod] = 0;
+          }
+          
+          paymentsByMethod[mappedMethod] += parseFloat(payment.amount || 0);
+        });
+      }
+    });
+
+    // Create HTML content for printing
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 20px; 
+              font-size: 12px;
+              direction: ltr;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #00AEEF;
+              padding-bottom: 10px;
+            }
+            .section { 
+              margin-bottom: 25px; 
+            }
+            .section-title { 
+              font-size: 16px; 
+              font-weight: bold; 
+              color: #00AEEF; 
+              margin-bottom: 10px;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 15px;
+            }
+            th, td { 
+              border: 1px solid #ddd; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            th { 
+              background-color: #f5f5f5; 
+              font-weight: bold;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            .summary-item {
+              background-color: #f9f9f9;
+              padding: 10px;
+              border-radius: 5px;
+              border-left: 4px solid #00AEEF;
+            }
+            .arabic { 
+              direction: rtl; 
+              text-align: right; 
+            }
+            @media print {
+              body { margin: 0; }
+              .section { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${reportTitle}</h1>
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">SUMMARY REPORT</div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <strong>📋 Total Orders:</strong> ${reportData.length}
+              </div>
+              <div class="summary-item">
+                <strong>🎟️ Total Tickets:</strong> ${summary.totalTickets}
+              </div>
+              <div class="summary-item">
+                <strong>💰 Total Revenue:</strong> EGP ${summary.totalRevenue.toFixed(2)}
+              </div>
+              <div class="summary-item">
+                <strong>💸 Total Discounts:</strong> EGP ${(summary.totalDiscounts || 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">TICKET BREAKDOWN</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Revenue (EGP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(ticketsByCategory).map(([category, data]) => `
+                  <tr>
+                    <td>${category}</td>
+                    <td>${data.quantity}</td>
+                    <td>${data.revenue.toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          ${Object.keys(mealsByType).length > 0 ? `
+          <div class="section">
+            <div class="section-title">MEAL BREAKDOWN</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Meal Type</th>
+                  <th>Quantity</th>
+                  <th>Revenue (EGP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(mealsByType).map(([mealName, data]) => `
+                  <tr>
+                    <td>${mealName}</td>
+                    <td>${data.quantity}</td>
+                    <td>${data.revenue.toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          <div class="section">
+            <div class="section-title">PAYMENT METHOD BREAKDOWN</div>
+            <table>
+              <thead>
+                <tr>
+                  <th class="arabic">Payment Method</th>
+                  <th>Total Amount (EGP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(paymentsByMethod).map(([method, amount]) => `
+                  <tr>
+                    <td class="arabic">${method}</td>
+                    <td>${amount.toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Open print window
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+
+    notify.success("Orders report prepared for printing!");
+  };
+
+  // New print function for tickets
+  const printTicketsReport = () => {
+    if (!ticketsReportData || (!ticketsReportData.tickets.length && !ticketsReportData.meals.length)) {
+      notify.warning("No tickets data to print");
+      return;
+    }
+
+    const reportTitle = useRange
+      ? `Tickets Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}`
+      : `Tickets Report for ${formatDisplayDate(selectedDate)}`;
+
+    const ticketsByCategory = ticketsReportData.tickets.reduce((acc, ticket) => {
+      if (!acc[ticket.category]) {
+        acc[ticket.category] = [];
+      }
+      acc[ticket.category].push(ticket);
+      return acc;
+    }, {});
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 20px; 
+              font-size: 12px;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #FF9800;
+              padding-bottom: 10px;
+            }
+            .section { 
+              margin-bottom: 25px; 
+            }
+            .section-title { 
+              font-size: 16px; 
+              font-weight: bold; 
+              color: #FF9800; 
+              margin-bottom: 10px;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 15px;
+            }
+            th, td { 
+              border: 1px solid #ddd; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            th { 
+              background-color: #f5f5f5; 
+              font-weight: bold;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            .summary-item {
+              background-color: #fff3e0;
+              padding: 15px;
+              border-radius: 5px;
+              border-left: 4px solid #FF9800;
+              text-align: center;
+            }
+            @media print {
+              body { margin: 0; }
+              .section { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${reportTitle}</h1>
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">SUMMARY</div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <strong>🎟️ Total Tickets</strong><br>
+                ${ticketsReportData.summary.tickets.totalQuantity}
+              </div>
+              <div class="summary-item">
+                <strong>🍽️ Total Meals</strong><br>
+                ${ticketsReportData.summary.meals.totalQuantity}
+              </div>
+              <div class="summary-item">
+                <strong>📊 Total Items</strong><br>
+                ${ticketsReportData.summary.tickets.totalQuantity + ticketsReportData.summary.meals.totalQuantity}
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">TICKETS REPORT</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Subcategory</th>
+                  <th>Quantity</th>
+                  <th>First Sale</th>
+                  <th>Last Sale</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(ticketsByCategory).map(([category, tickets]) => {
+                  let categoryRows = '';
+                  let categoryQuantity = 0;
+                  
+                  tickets.forEach(ticket => {
+                    const quantity = parseInt(ticket.quantity);
+                    const firstSale = ticket.first_sale ? new Date(ticket.first_sale).toLocaleString() : 'N/A';
+                    const lastSale = ticket.last_sale ? new Date(ticket.last_sale).toLocaleString() : 'N/A';
+                    
+                    categoryRows += `
+                      <tr>
+                        <td>${category}</td>
+                        <td>${ticket.subcategory}</td>
+                        <td>${quantity}</td>
+                        <td>${firstSale}</td>
+                        <td>${lastSale}</td>
+                      </tr>
+                    `;
+                    categoryQuantity += quantity;
+                  });
+                  
+                  categoryRows += `
+                    <tr style="background-color: #f0f0f0; font-weight: bold;">
+                      <td>${category} SUBTOTAL</td>
+                      <td>-</td>
+                      <td>${categoryQuantity}</td>
+                      <td>-</td>
+                      <td>-</td>
+                    </tr>
+                  `;
+                  
+                  return categoryRows;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          ${ticketsReportData.meals.length > 0 ? `
+          <div class="section">
+            <div class="section-title">MEALS REPORT</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Meal Name</th>
+                  <th>Quantity</th>
+                  <th>First Sale</th>
+                  <th>Last Sale</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ticketsReportData.meals.map(meal => {
+                  const quantity = parseInt(meal.total_quantity);
+                  const firstSale = meal.first_sale ? new Date(meal.first_sale).toLocaleString() : 'N/A';
+                  const lastSale = meal.last_sale ? new Date(meal.last_sale).toLocaleString() : 'N/A';
+                  
+                  return `
+                    <tr>
+                      <td>${meal.meal_name}</td>
+                      <td>${quantity}</td>
+                      <td>${firstSale}</td>
+                      <td>${lastSale}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+
+    notify.success("Tickets report prepared for printing!");
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -1049,15 +1520,15 @@ const AccountantReports = () => {
             </Box>
           </Paper>
 
-          {/* Bottom Summary Bar - Anchored at Bottom */}
+          {/* Bottom Summary Bar - Updated with print buttons */}
           <Paper sx={{ 
             background: "linear-gradient(135deg, #E0F7FF 0%, #ffffff 100%)", 
             borderRadius: 2,
             p: 2,
-            mt: 1, // Add margin top for spacing
+            mt: 1,
             borderTop: "3px solid #00AEEF",
             boxShadow: "0 -4px 20px rgba(0, 174, 239, 0.15)",
-            flexShrink: 0 // Prevent the bar from shrinking
+            flexShrink: 0
           }}>
             {reportMode === 'orders' ? (
               <Grid container spacing={2} alignItems="center">
@@ -1076,7 +1547,7 @@ const AccountantReports = () => {
                       </Typography>
                     </Box>
                     
-                    {/* Second Row - Discounts (if any) */}
+                    {/* Second Row - Discounts (if any) - FIXED */}
                     {summary.totalDiscounts > 0 && (
                       <Box display="flex" justifyContent={{ xs: "center", md: "flex-start" }}>
                         <Typography variant="body1" sx={{ color: 'error.main', fontWeight: 700, fontSize: '1.1rem' }}>
@@ -1086,7 +1557,7 @@ const AccountantReports = () => {
                     )}
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={4} display="flex" justifyContent="center">
+                <Grid item xs={12} md={4} display="flex" justifyContent="center" gap={1}>
                   <Button
                     variant="contained"
                     disabled={reportData.length === 0 || loading}
@@ -1096,8 +1567,8 @@ const AccountantReports = () => {
                     sx={{
                       background: "linear-gradient(45deg, #00AEEF 30%, #007EA7 90%)",
                       boxShadow: "0 3px 5px 2px rgba(0, 174, 239, .3)",
-                      fontSize: '1rem',
-                      px: 3,
+                      fontSize: '0.9rem',
+                      px: 2,
                       py: 1,
                       '&:hover': {
                         background: "linear-gradient(45deg, #007EA7 30%, #005577 90%)",
@@ -1106,26 +1577,47 @@ const AccountantReports = () => {
                   >
                     📊 Export CSV
                   </Button>
+                  <Button
+                    variant="outlined"
+                    disabled={reportData.length === 0 || loading}
+                    onClick={printOrdersReport}
+                    size="medium"
+                    startIcon={<span>🖨️</span>}
+                    sx={{
+                      borderColor: "#00AEEF",
+                      color: "#00AEEF",
+                      fontSize: '0.9rem',
+                      px: 2,
+                      py: 1,
+                      '&:hover': {
+                        borderColor: "#007EA7",
+                        backgroundColor: "#E0F7FF",
+                      }
+                    }}
+                  >
+                    Print
+                  </Button>
                 </Grid>
               </Grid>
             ) : ticketsReportData ? (
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} md={8}>
+                  {/* FIXED - Tickets section */}
                   <Box display="flex" gap={4} justifyContent={{ xs: "center", md: "flex-start" }} flexWrap="wrap">
                     <Typography variant="body1" sx={{ fontWeight: 700, color: "#00AEEF", fontSize: '1.1rem' }}>
                       <b>🎟️ Tickets:</b> {ticketsReportData.summary.tickets.totalQuantity}
                     </Typography>
                     {ticketsReportData.summary.meals.totalQuantity > 0 && (
                       <Typography variant="body1" sx={{ fontWeight: 700, color: "#FF9800", fontSize: '1.1rem' }}>
-                      <b>🍽️ Meals:</b> {ticketsReportData.summary.meals.totalQuantity}
-                    </Typography>
+                        <b>🍽️ Meals:</b> {ticketsReportData.summary.meals.totalQuantity}
+                      </Typography>
                     )}
                     <Typography variant="body1" sx={{ color: "#ff9800", fontWeight: 800, fontSize: '1.2rem' }}>
                       <b>📊 TOTAL ITEMS:</b> {ticketsReportData.summary.tickets.totalQuantity + ticketsReportData.summary.meals.totalQuantity}
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={4} display="flex" justifyContent="center">
+                <Grid item xs={12} md={4} display="flex" justifyContent="center" gap={1}>
                   <Button
                     variant="contained"
                     disabled={!ticketsReportData || loading}
@@ -1135,8 +1627,8 @@ const AccountantReports = () => {
                     sx={{
                       background: "linear-gradient(45deg, #FF9800 30%, #FF5722 90%)",
                       boxShadow: "0 3px 5px 2px rgba(255, 152, 0, .3)",
-                      fontSize: '1rem',
-                      px: 3,
+                      fontSize: '0.9rem',
+                      px: 2,
                       py: 1,
                       '&:hover': {
                         background: "linear-gradient(45deg, #FF5722 30%, #E64A19 90%)",
@@ -1144,6 +1636,26 @@ const AccountantReports = () => {
                     }}
                   >
                     📊 Export CSV
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    disabled={!ticketsReportData || loading}
+                    onClick={printTicketsReport}
+                    size="medium"
+                    startIcon={<span>🖨️</span>}
+                    sx={{
+                      borderColor: "#FF9800",
+                      color: "#FF9800",
+                      fontSize: '0.9rem',
+                      px: 2,
+                      py: 1,
+                      '&:hover': {
+                        borderColor: "#FF5722",
+                        backgroundColor: "#FFF3E0",
+                      }
+                    }}
+                  >
+                    Print
                   </Button>
                 </Grid>
               </Grid>

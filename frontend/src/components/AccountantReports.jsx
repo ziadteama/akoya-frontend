@@ -507,8 +507,16 @@ const AccountantReports = () => {
     const totalRevenue = reportItems.reduce((sum, row) => 
       sum + (Number(row.total_amount) || 0), 0);
     
-    const totalTickets = reportItems.reduce((sum, row) => 
-      sum + ((row.tickets && row.tickets.length) || 0), 0);
+    // FIX: Calculate actual ticket quantities, not just ticket count
+    const totalTickets = reportItems.reduce((sum, row) => {
+      if (row.tickets && Array.isArray(row.tickets)) {
+        const orderTicketCount = row.tickets.reduce((ticketSum, ticket) => {
+          return ticketSum + (Number(ticket.quantity) || 1);
+        }, 0);
+        return sum + orderTicketCount;
+      }
+      return sum;
+    }, 0);
     
     // Calculate total discounts applied (for reporting)
     const totalDiscounts = reportItems.reduce((sum, row) => {
@@ -624,7 +632,6 @@ const AccountantReports = () => {
                   {categoryQuantity} tickets sold
                 </Typography>
               </Box>
-            </Box>
             
             <Box display="flex" alignItems="center" gap={2}>
               <Box textAlign="right">
@@ -650,6 +657,7 @@ const AccountantReports = () => {
                 {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
             </Box>
+          </Box>
           </Box>
           
           {/* Expandable content - Subcategories with different colors */}
@@ -1534,7 +1542,7 @@ const AccountantReports = () => {
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} md={8}>
                   <Box display="flex" flexDirection="column" gap={1}>
-                    {/* First Row - Main Stats */}
+                    {/* First Row - Main Stats - FIXED */}
                     <Box display="flex" gap={4} justifyContent={{ xs: "center", md: "flex-start" }} flexWrap="wrap">
                       <Typography variant="body1" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
                         <b>📋 Orders:</b> {reportData.length}
@@ -1547,7 +1555,7 @@ const AccountantReports = () => {
                       </Typography>
                     </Box>
                     
-                    {/* Second Row - Discounts (if any) - FIXED */}
+                    {/* Second Row - Discounts (if any) */}
                     {summary.totalDiscounts > 0 && (
                       <Box display="flex" justifyContent={{ xs: "center", md: "flex-start" }}>
                         <Typography variant="body1" sx={{ color: 'error.main', fontWeight: 700, fontSize: '1.1rem' }}>
@@ -1566,7 +1574,7 @@ const AccountantReports = () => {
                     startIcon={<TrendingUpIcon />}
                     sx={{
                       background: "linear-gradient(45deg, #00AEEF 30%, #007EA7 90%)",
-                      boxShadow: "0 3px 5px 2px rgba(0, 174, 239, .3)",
+                      boxShadow: "0 3px 5px 2px rgba(0,174,239,.3)",
                       fontSize: '0.9rem',
                       px: 2,
                       py: 1,

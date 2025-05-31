@@ -247,6 +247,54 @@ const AccountantReports = () => {
       return str;
     };
 
+    // Payment method mapping function
+    const mapPaymentMethod = (method) => {
+      const methodMappings = {
+        'postponed': 'آجل',
+        'الاهلي': 'بنك الاهلي و مصر',
+        'مصر': 'بنك الاهلي و مصر',
+        'الاهلي و مصر': 'بنك الاهلي و مصر',
+        'cash': 'نقدي',
+        'credit': 'فيزا',
+        'OTHER': 'بنوك اخرى',
+        'other': 'بنوك اخرى',
+        'visa': 'فيزا',
+        'debit': 'بطاقة خصم',
+        'discount': 'خصم'
+      };
+      
+      const normalizedMethod = (method || '').toString().toLowerCase().trim();
+      
+      // Check for exact matches first
+      if (methodMappings[normalizedMethod]) {
+        return methodMappings[normalizedMethod];
+      }
+      
+      // Check if it contains الاهلي or مصر
+      if (normalizedMethod.includes('الاهلي') || normalizedMethod.includes('مصر')) {
+        return 'بنك الاهلي و مصر';
+      }
+      
+      // Check if it's postponed in different forms
+      if (normalizedMethod.includes('postponed') || normalizedMethod.includes('آجل')) {
+        return 'آجل';
+      }
+      
+      // Check if it's cash in different forms
+      if (normalizedMethod.includes('cash') || normalizedMethod.includes('نقد')) {
+        return 'نقدي';
+      }
+      
+      // Default to "بنوك اخرى" for any other bank-like payment
+      if (normalizedMethod.includes('bank') || normalizedMethod.includes('بنك') || 
+          normalizedMethod.includes('card') || normalizedMethod.includes('بطاقة')) {
+        return 'بنوك اخرى';
+      }
+      
+      // Return original if no mapping found
+      return method || 'غير محدد';
+    };
+
     let csvContent = "\uFEFF";
     csvContent += useRange
       ? `Orders Report from ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}\r\n\r\n`
@@ -312,18 +360,19 @@ const AccountantReports = () => {
       csvContent += `${escapeCSV(mealName)},${data.quantity},${data.revenue.toFixed(2)}\r\n`;
     });
 
-    // Payment method breakdown
+    // Payment method breakdown with Arabic mapping
     const paymentsByMethod = {};
     reportData.forEach(order => {
       if (order.payments && order.payments.length > 0) {
         order.payments.forEach(payment => {
-          const method = payment.method || 'Unknown';
+          const originalMethod = payment.method || 'Unknown';
+          const mappedMethod = mapPaymentMethod(originalMethod);
           
-          if (!paymentsByMethod[method]) {
-            paymentsByMethod[method] = 0;
+          if (!paymentsByMethod[mappedMethod]) {
+            paymentsByMethod[mappedMethod] = 0;
           }
           
-          paymentsByMethod[method] += parseFloat(payment.amount || 0);
+          paymentsByMethod[mappedMethod] += parseFloat(payment.amount || 0);
         });
       }
     });

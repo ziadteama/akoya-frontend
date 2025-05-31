@@ -574,14 +574,6 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
         
         <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
         
-        ${data.description && data.description.trim() ? `
-          <div style="margin: 3mm 0;">
-            <div style="font-weight: 900; margin-bottom: 2mm; font-size: 11pt; text-decoration: underline;">DESCRIPTION:</div>
-            <div style="font-size: 10pt; font-weight: bold; background: #f8f8f8; padding: 2mm; border: 1px solid #ccc; border-radius: 2px; word-wrap: break-word;">${data.description}</div>
-          </div>
-          <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
-        ` : ''}
-        
         <div style="font-weight: 900; margin: 3mm 0 2mm 0; font-size: 12pt; text-decoration: underline;">ORDER ITEMS</div>
         
         ${data.items.tickets && data.items.tickets.length > 0 ? data.items.tickets.map(ticket => `
@@ -641,6 +633,14 @@ const CheckoutPanel = ({ ticketCounts, types, onCheckout, onClear, mode = "new",
           <div style="margin-bottom: 1mm; font-weight: 900;">Akoya Water Park!</div>
           <div style="font-size: 11pt; font-weight: 900;">Have a wonderful day! 🌊</div>
         </div>
+        
+        ${data.description && data.description.trim() ? `
+          <div style="border-top: 2px dashed black; margin: 3mm 0;"></div>
+          <div style="margin: 3mm 0;">
+            <div style="font-weight: 900; margin-bottom: 2mm; font-size: 11pt; text-decoration: underline; text-align: center;">ORDER NOTES:</div>
+            <div style="font-size: 10pt; font-weight: bold; background: #f8f8f8; padding: 2mm; border: 1px solid #ccc; border-radius: 2px; word-wrap: break-word; text-align: center; font-style: italic;">${data.description}</div>
+          </div>
+        ` : ''}
       </div>
     `;
   };

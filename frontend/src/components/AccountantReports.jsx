@@ -916,6 +916,9 @@ const AccountantReports = () => {
       
       if (normalizedMethod.includes('postponed') || normalizedMethod.includes('آجل')) {
         return 'آجل';
+      } 
+      if (normalizedMethod.includes('vodafone_cash') || normalizedMethod.includes('vodafone cash')) {
+        return 'فودافون كاش';
       }
       
       if (normalizedMethod.includes('cash') || normalizedMethod.includes('نقد')) {
